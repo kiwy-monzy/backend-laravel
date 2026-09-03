@@ -6,6 +6,7 @@ use App\Models\ContentSection;
 use App\Models\GalleryImage;
 use App\Models\Organization;
 use App\Models\OrganizationMember;
+use App\Models\OrganizationModule;
 use App\Models\StorageCollection;
 use App\Models\User;
 use App\Models\Website;
