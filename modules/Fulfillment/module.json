@@ -1,0 +1,22 @@
+{
+    "name": "Fulfillment",
+    "slug": "fulfillment",
+    "label": "Fulfillment",
+    "description": "Packing and shipping: packages, carriers and tracking.",
+    "icon": "fulfillment",
+    "order": 70,
+    "enabled": true,
+    "requires_plan": "professional",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "fulfillment.index",
+            "active": "fulfillment.index"
+        },
+        {
+            "label": "Fulfillment",
+            "route": "fulfillment.records.index",
+            "active": "fulfillment.records.*"
+        }
+    ]
+}

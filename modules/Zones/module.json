@@ -1,0 +1,21 @@
+{
+    "name": "Zones",
+    "slug": "zones",
+    "label": "Zones",
+    "description": "Drawn service areas, and what they cover: providers, shipments and the organization's own trading areas.",
+    "icon": "zones",
+    "order": 96,
+    "enabled": true,
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "zones.index",
+            "active": "zones.index"
+        },
+        {
+            "label": "Zones",
+            "route": "zones.records.index",
+            "active": "zones.records.*"
+        }
+    ]
+}

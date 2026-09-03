@@ -1,0 +1,22 @@
+{
+    "name": "Billing",
+    "slug": "billing",
+    "label": "Billing",
+    "description": "Recurring subscriptions sold to your own customers.",
+    "icon": "billing",
+    "order": 80,
+    "enabled": true,
+    "requires_plan": "professional",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "billing.index",
+            "active": "billing.index"
+        },
+        {
+            "label": "Billing",
+            "route": "billing.records.index",
+            "active": "billing.records.*"
+        }
+    ]
+}

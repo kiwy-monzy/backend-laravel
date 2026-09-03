@@ -1,0 +1,22 @@
+{
+    "name": "Tickets",
+    "slug": "tickets",
+    "label": "Support",
+    "description": "Support tickets from customers and staff, with priority, assignment and resolution.",
+    "icon": "tickets",
+    "order": 150,
+    "enabled": true,
+    "requires_plan": null,
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "tickets.index",
+            "active": "tickets.index"
+        },
+        {
+            "label": "Support",
+            "route": "tickets.records.index",
+            "active": "tickets.records.*"
+        }
+    ]
+}

@@ -1,0 +1,22 @@
+{
+    "name": "Assets",
+    "slug": "assets",
+    "label": "Assets",
+    "description": "Equipment the organization owns and uses - assigned to people, depreciated, and reconciled against inventory.",
+    "icon": "assets",
+    "order": 45,
+    "enabled": true,
+    "requires_plan": "professional",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "assets.index",
+            "active": "assets.index"
+        },
+        {
+            "label": "Assets",
+            "route": "assets.records.index",
+            "active": "assets.records.*"
+        }
+    ]
+}

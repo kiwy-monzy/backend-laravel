@@ -1,0 +1,405 @@
+/* Template 0 — the FGE React frontend, ported to plain CSS.
+ *
+ * **This file is a transcription, not a redesign.** Every value below was read
+ * off the Tailwind classes in `fge-frontend/src/components/*.tsx` so the Blade
+ * page renders the same pixels the JSX did. Where a number looks arbitrary
+ * (`-6rem` on the nav, `#1a1a1a21` in the grid) it is arbitrary *in the
+ * original* — reproducing it is the point, and "tidying" it is how a port
+ * stops matching.
+ *
+ * It layers on top of site.css: shared structure there, FGE's identity here.
+ * Only `.t0` is touched, so the other five templates are unaffected.
+ */
+
+body.t0 {
+  --t0-red: #e42f2f;
+  --t0-pink: #e9267c;
+  --t0-teal: #0d9488;
+  --t0-ink: #1f2937;
+  --t0-dim: #4b5563;
+
+  /* globals.css put this on #app, with the same fixed attachment. */
+  background: linear-gradient(to bottom right, #f0fdf4, #d1fae5);
+  background-attachment: fixed;
+  color: var(--t0-ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ── The floating pill navbar ─────────────────────────────────────────────
+   `sticky top-4 w-[95%] max-w-7xl mx-auto rounded-2xl border-white/20
+   bg-white/70 backdrop-blur-xl shadow-lg -mt-24`.
+
+   The negative top margin is what lets the hero start *above* the navbar and
+   show through it — the blur has to have something to blur. */
+body.t0 .t0-nav {
+  position: sticky; top: 1rem; z-index: 50;
+  width: 95%; max-width: 80rem; margin: 0 auto -6rem;
+  border: 1px solid rgba(255, 255, 255, .2); border-radius: 1rem;
+  background: rgba(255, 255, 255, .7);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, .1), 0 4px 6px -4px rgba(0, 0, 0, .1);
+}
+body.t0 .t0-nav-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 4rem; padding: 0 1rem;
+}
+@media (min-width: 640px) { body.t0 .t0-nav-inner { padding: 0 1.5rem; } }
+@media (min-width: 1024px) { body.t0 .t0-nav-inner { padding: 0 2rem; } }
+
+body.t0 .t0-brand { display: flex; align-items: center; gap: .5rem; text-decoration: none; }
+body.t0 .t0-brand img { height: 2.5rem; width: auto; }
+body.t0 .t0-brand .mark {
+  font-size: 1.5rem; font-weight: 800;
+  background: linear-gradient(to right, var(--t0-red), var(--t0-pink));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+body.t0 .t0-brand .full { font-weight: 600; color: #1f2937; }
+@media (max-width: 767px) { body.t0 .t0-brand .full { display: none; } }
+
+body.t0 .t0-links { display: flex; align-items: center; gap: .5rem; }
+body.t0 .t0-links a {
+  color: #4b5563; padding: .5rem .75rem; border-radius: .5rem;
+  font-size: .875rem; font-weight: 500; text-decoration: none;
+  transition: all .2s ease;
+}
+body.t0 .t0-links a:hover { color: var(--t0-red); background: rgba(228, 47, 47, .06); }
+body.t0 .t0-donate {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: linear-gradient(to right, var(--t0-red), var(--t0-pink));
+  color: #fff; padding: .5rem 1.25rem; border-radius: .75rem;
+  font-size: .875rem; font-weight: 700; text-decoration: none;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, .1);
+}
+body.t0 .t0-donate:hover { color: #fff; text-decoration: none; }
+body.t0 .t0-burger {
+  display: none; background: none; border: 0; padding: .5rem;
+  color: #4b5563; border-radius: .75rem; cursor: pointer;
+}
+
+@media (max-width: 1023px) {
+  body.t0 .t0-burger { display: block; }
+
+  /* **The open menu needs its own background.** It is absolutely positioned
+     over the hero, and without an opaque panel the grid, the blobs and the
+     headline all show through the links — which at 375px made the menu
+     genuinely unreadable. Matching the navbar's own radius and shadow makes it
+     read as the pill extending downward rather than as loose text. */
+  body.t0 .t0-links {
+    display: none; position: absolute; left: 0; right: 0; top: calc(4rem + 4px);
+    flex-direction: column; align-items: stretch; gap: .25rem;
+    padding: .5rem; border: 1px solid #eceef1; border-radius: 1rem;
+    /* Fully opaque, and no `backdrop-filter`. Translucency plus a backdrop
+       blur left the hero headline legible straight through the menu — and a
+       navigation menu you cannot read is worse than one that is not pretty.
+       The frosted effect stays on the navbar itself, where there is only a
+       4rem strip to see through. */
+    background: #ffffff;
+    box-shadow: 0 12px 28px -8px rgba(0, 0, 0, .25);
+  }
+  body.t0 .t0-links.open { display: flex; }
+  body.t0 .t0-links a { padding: .75rem; border-radius: .75rem; font-size: 1rem; }
+  body.t0 .t0-donate { justify-content: center; margin-top: .5rem; }
+}
+
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+body.t0 .t0-hero {
+  position: relative; overflow: hidden;
+  padding-top: 7.5rem; padding-bottom: 8rem;
+}
+@media (min-width: 1024px) {
+  body.t0 .t0-hero { padding-top: 8rem; padding-bottom: 12rem; }
+}
+
+/* **The background grid.**
+ *
+ * Transcribed exactly from the Tailwind arbitrary value:
+ *
+ *   bg-[linear-gradient(to_right,#1a1a1a,transparent_1px),
+ *       linear-gradient(to_bottom,#1a1a1a21_1px,transparent_1px)]
+ *   bg-[size:20px_20px]
+ *   [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]
+ *
+ * Two things worth knowing before "fixing" it. The vertical rule is a two-stop
+ * gradient from solid #1a1a1a to transparent at 1px, so it is a hairline that
+ * fades rather than a hard line; the horizontal one uses #1a1a1a21 — the same
+ * colour at 13% alpha — so the two axes are deliberately different weights.
+ * The radial mask is what fades the whole grid out below and to the sides,
+ * leaving it strongest under the headline. */
+body.t0 .t0-grid {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background-image:
+    linear-gradient(to right, #1a1a1a, transparent 1px),
+    linear-gradient(to bottom, #1a1a1a21 1px, transparent 1px);
+  background-size: 20px 20px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, #000 70%, transparent 100%);
+  mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, #000 70%, transparent 100%);
+}
+
+/* The tinted layer the blobs live in: green-50 → emerald-50 → teal-50. */
+body.t0 .t0-hero-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom right, #f0fdf4, #ecfdf5, #f0fdfa);
+}
+
+/* A photograph at 30%, soft-light blended — visible as texture, not as an
+   image. The URL comes from the page so it follows the site's own content. */
+body.t0 .t0-hero-photo {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+  opacity: .3; mix-blend-mode: soft-light;
+}
+
+body.t0 .t0-blob {
+  position: absolute; width: 24rem; height: 24rem; border-radius: 9999px;
+  mix-blend-mode: multiply; filter: blur(64px); opacity: .3;
+  animation: t0-blob 7s infinite;
+}
+body.t0 .t0-blob.one { top: 0; left: 0; background: #86efac; }
+body.t0 .t0-blob.two { top: 0; right: 0; background: #6ee7b7; animation-delay: 2s; }
+body.t0 .t0-blob.three {
+  bottom: 0; left: 50%; transform: translateX(-50%);
+  background: #5eead4; animation-delay: 4s;
+}
+
+body.t0 .t0-floats { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+body.t0 .t0-floats svg { position: absolute; opacity: .2; animation: t0-float 3s ease-in-out infinite; }
+body.t0 .t0-floats .f1 { top: 5rem; left: 2.5rem; width: 2rem; height: 2rem; color: #4ade80; }
+body.t0 .t0-floats .f2 { top: 10rem; right: 5rem; width: 2.5rem; height: 2.5rem; color: #34d399; animation-delay: 1s; }
+body.t0 .t0-floats .f3 { bottom: 8rem; left: 25%; width: 1.5rem; height: 1.5rem; color: #2dd4bf; animation-delay: 2s; }
+
+body.t0 .t0-hero-inner {
+  position: relative; z-index: 10;
+  max-width: 80rem; margin: 0 auto; padding: 0 1rem;
+}
+@media (min-width: 640px) { body.t0 .t0-hero-inner { padding: 0 1.5rem; } }
+@media (min-width: 1024px) { body.t0 .t0-hero-inner { padding: 0 2rem; } }
+body.t0 .t0-hero-copy { max-width: 56rem; margin: 0 auto; text-align: center; }
+
+body.t0 .t0-badge {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .5rem 1rem; margin-bottom: 2rem;
+  background: rgba(255, 255, 255, .8); backdrop-filter: blur(4px);
+  border: 1px solid #dcfce7; border-radius: 9999px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, .1);
+  color: #166534; font-weight: 600; font-size: .875rem;
+}
+body.t0 .t0-badge svg { width: 1.25rem; height: 1.25rem; color: var(--t0-red); }
+
+body.t0 .t0-hero h1 {
+  font-size: 3rem; font-weight: 800; letter-spacing: -.025em;
+  line-height: 1.15; margin: 0 0 2rem;
+}
+@media (min-width: 768px) { body.t0 .t0-hero h1 { font-size: 3.75rem; } }
+@media (min-width: 1024px) { body.t0 .t0-hero h1 { font-size: 4.5rem; } }
+
+/* The animated tri-colour headline. `background-size: 200%` is what gives the
+   gradient somewhere to travel; without it the animation has no effect. */
+body.t0 .t0-gradient-text {
+  background-image: linear-gradient(to right, var(--t0-red), var(--t0-pink), var(--t0-teal));
+  background-size: 200% 200%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: t0-gradient 3s ease infinite;
+}
+
+body.t0 .t0-hero p.lead {
+  font-size: 1.25rem; line-height: 1.7; color: #374151;
+  max-width: 48rem; margin: 0 auto 3rem;
+}
+@media (min-width: 768px) { body.t0 .t0-hero p.lead { font-size: 1.5rem; } }
+
+body.t0 .t0-cta {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 1rem;
+}
+@media (min-width: 640px) { body.t0 .t0-cta { flex-direction: row; gap: 1.5rem; } }
+
+body.t0 .t0-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  width: 100%; padding: 1rem 2rem; border-radius: 1rem;
+  font-size: 1rem; font-weight: 700; text-decoration: none;
+  transition: all .3s ease;
+}
+@media (min-width: 640px) { body.t0 .t0-btn { width: auto; } }
+body.t0 .t0-btn.primary {
+  background: linear-gradient(to right, var(--t0-red), var(--t0-pink), var(--t0-teal));
+  color: #fff;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, .1), 0 8px 10px -6px rgba(0, 0, 0, .1);
+}
+body.t0 .t0-btn.primary:hover { color: #fff; text-decoration: none; filter: brightness(1.05); }
+body.t0 .t0-btn.secondary {
+  background: rgba(255, 255, 255, .8); backdrop-filter: blur(4px);
+  color: #374151; border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, .1);
+}
+body.t0 .t0-btn.secondary:hover { color: #374151; text-decoration: none; }
+body.t0 .t0-btn svg { width: 1.25rem; height: 1.25rem; }
+
+body.t0 .t0-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;
+  max-width: 42rem; margin: 4rem auto 0;
+}
+body.t0 .t0-stats .v { font-size: 1.875rem; font-weight: 700; margin-bottom: .25rem; }
+body.t0 .t0-stats .item:nth-child(3n+1) .v { color: var(--t0-red); }
+body.t0 .t0-stats .item:nth-child(3n+2) .v { color: var(--t0-pink); }
+body.t0 .t0-stats .item:nth-child(3n) .v { color: var(--t0-teal); }
+body.t0 .t0-stats .l { font-size: .875rem; color: #4b5563; }
+
+/* ── Sections ─────────────────────────────────────────────────────────────
+   The React `Section` wrapper: `py-16 md:py-24 px-4 max-w-7xl mx-auto`. */
+body.t0 .section { padding: 4rem 0; }
+@media (min-width: 768px) { body.t0 .section { padding: 6rem 0; } }
+body.t0 .wrap { max-width: 80rem; padding: 0 1rem; }
+@media (min-width: 640px) { body.t0 .wrap { padding: 0 1.5rem; } }
+@media (min-width: 1024px) { body.t0 .wrap { padding: 0 2rem; } }
+
+body.t0 .section-head h2 {
+  font-size: 1.875rem; font-weight: 700; letter-spacing: -.025em; color: #111827;
+}
+@media (min-width: 640px) { body.t0 .section-head h2 { font-size: 2.25rem; } }
+body.t0 .section-head p { font-size: 1.125rem; color: #4b5563; }
+
+/* About's vision panel: `bg-white/60 backdrop-blur-xl rounded-3xl border-white/20`. */
+body.t0 .card {
+  background: rgba(255, 255, 255, .6); backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, .2); border-radius: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, .06);
+}
+body.t0 .card:hover { transform: none; box-shadow: 0 25px 30px -5px rgba(0, 0, 0, .09); }
+body.t0 .card .body { padding: 2rem; }
+body.t0 .card h3 { font-size: 1.5rem; font-weight: 700; color: #111827; }
+body.t0 .card img.cover { height: 16rem; }
+
+body.t0 .pill {
+  background: linear-gradient(to right, rgba(228, 47, 47, .1), rgba(233, 38, 124, .1));
+  border: 1px solid rgba(228, 47, 47, .2);
+  color: var(--t0-red); text-transform: uppercase; letter-spacing: .05em;
+  padding: .375rem 1rem; font-weight: 700;
+}
+
+body.t0 .gallery figure { border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, .1); }
+body.t0 .gallery figcaption {
+  background: linear-gradient(to top, rgba(228, 47, 47, .9), rgba(233, 38, 124, .4), transparent);
+}
+
+body.t0 .person img { border-color: #a7f3d0; }
+
+/* ── Footer ───────────────────────────────────────────────────────────────
+   `bg-gradient-to-br from-gray-900 via-emerald-950 to-gray-900`, with two
+   blurred colour blobs at 10%. */
+body.t0 .foot {
+  position: relative; overflow: hidden;
+  background: linear-gradient(to bottom right, #111827, #022c22, #111827);
+  color: #fff; padding: 5rem 0 2rem; margin-top: 0;
+}
+body.t0 .foot::before,
+body.t0 .foot::after {
+  content: ""; position: absolute; width: 24rem; height: 24rem;
+  border-radius: 9999px; filter: blur(64px); opacity: .1; pointer-events: none;
+}
+body.t0 .foot::before { top: 0; left: 0; background: #22c55e; }
+body.t0 .foot::after { bottom: 0; right: 0; background: #10b981; }
+body.t0 .foot .cols, body.t0 .foot .fine { position: relative; z-index: 10; }
+body.t0 .foot h4 { font-size: 1.125rem; font-weight: 700; margin-bottom: 1.5rem; }
+body.t0 .foot p, body.t0 .foot li { color: #d1d5db; }
+body.t0 .foot a { color: #d1d5db; }
+body.t0 .foot a:hover { color: #4ade80; }
+
+/* ── Animations, lifted from globals.css ─────────────────────────────────── */
+@keyframes t0-blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(.9); }
+}
+@keyframes t0-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+@keyframes t0-gradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* The third blob is centred with a transform, so its keyframes would fight the
+   centring and slide it off to the left. */
+body.t0 .t0-blob.three { animation-name: t0-blob-centred; }
+@keyframes t0-blob-centred {
+  0%, 100% { transform: translate(-50%, 0) scale(1); }
+  33% { transform: translate(calc(-50% + 30px), -50px) scale(1.1); }
+  66% { transform: translate(calc(-50% - 20px), 20px) scale(.9); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.t0 .t0-blob, body.t0 .t0-floats svg, body.t0 .t0-gradient-text {
+    animation: none;
+  }
+}
+
+/* ── Small screens ────────────────────────────────────────────────────────
+   The desktop sizes are transcribed from the original and stay exactly as
+   they are; these only affect widths the original never really sat at. */
+@media (max-width: 640px) {
+  /* 48px headlines set six words to a line at 375px. Fluid down to ~30px
+     keeps the same design at a size that can actually be read. */
+  body.t0 .t0-hero h1 { font-size: clamp(1.9rem, 8.5vw, 3rem); }
+  body.t0 .t0-hero p.lead { font-size: 1.05rem; }
+  body.t0 .t0-hero { padding-top: 6rem; padding-bottom: 4rem; }
+  body.t0 .t0-badge { font-size: .8rem; margin-bottom: 1.25rem; }
+  body.t0 .t0-btn { padding: .875rem 1.5rem; }
+
+  /* Three stat columns at 375px leave about 90px each. */
+  body.t0 .t0-stats { grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 2.5rem; }
+  body.t0 .t0-stats .v { font-size: 1.6rem; }
+
+  body.t0 .section-head h2 { font-size: 1.6rem; }
+  body.t0 .card .body { padding: 1.25rem; }
+  body.t0 .foot { padding-top: 3rem; }
+}
+
+/* Flat, matching the rest. The navbar keeps its blur but loses the drop
+   shadow; the buttons keep their gradient but not the lift. */
+body.t0 .t0-nav,
+body.t0 .t0-btn,
+body.t0 .t0-donate,
+body.t0 .card,
+body.t0 .t0-links { box-shadow: none !important; }
+body.t0 .t0-nav { border-color: rgba(0, 0, 0, .06); }
+body.t0 .t0-links { border-color: #e6e8ec; }
+body.t0 .card:hover { box-shadow: none !important; }
+
+/* The headline was 3rem/3.75rem/4.5rem transcribed from the original. Kept in
+   proportion but brought down a step, which is what "not so big" asks for
+   while still reading as the same design. */
+body.t0 .t0-hero h1 { font-size: clamp(1.9rem, 4.6vw, 3.25rem); }
+body.t0 .t0-hero p.lead { font-size: clamp(1rem, 1.7vw, 1.2rem); }
+@media (min-width: 768px) { body.t0 .t0-hero h1 { font-size: clamp(2.2rem, 4.6vw, 3.25rem); } }
+@media (min-width: 1024px) { body.t0 .t0-hero h1 { font-size: clamp(2.6rem, 4.4vw, 3.5rem); } }
+
+/* Same reason as site.css: the floating pill would ride over the preview.
+   The negative margin goes with it, or the hero would slide up under nothing. */
+body.t0.embedded .t0-nav { position: static; margin-bottom: 0; }
+body.t0.embedded .t0-hero { padding-top: 3rem; }
+
+/* ── Inner pages ──────────────────────────────────────────────────────────
+   The floating navbar carries a -6rem margin so the hero can start above it
+   and show through the blur. That only works on the home page, where the
+   hero's 7.5rem top padding clears the pill. Every other page opens on a
+   plain section, so without this the navbar sits on top of the first heading
+   — "About Us" was half-hidden behind it.
+
+   The compensation cancels the -6rem lift and adds a clear band beneath the
+   floating pill, so the first section starts in open space. A tinted strip
+   fills the gap the negative margin would otherwise leave transparent. */
+body.t0-inner main {
+    padding-top: 8rem;
+    background: linear-gradient(to bottom, #f0fdf4 0, transparent 12rem);
+}
+body.t0-inner .section:first-child { padding-top: 1rem; }
+
+@media (max-width: 640px) {
+    body.t0-inner main { padding-top: 6.5rem; }
+}
+
+/* In the admin preview the navbar is un-stuck (see body.embedded), so the
+   inner-page compensation would leave a large empty band at the top. */
+body.t0-inner.embedded main { padding-top: 2rem; background: none; }

@@ -1,0 +1,57 @@
+{
+    "name": "Invoicing",
+    "slug": "invoicing",
+    "label": "Invoicing",
+    "description": "Quotes, invoices, receipts and credit notes, the payments that settle them, and the recurring profiles that raise them.",
+    "icon": "invoicing",
+    "order": 20,
+    "enabled": true,
+    "requires_plan": "starter",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "invoicing.index",
+            "active": "invoicing.index"
+        },
+        {
+            "label": "Quotes",
+            "route": "invoicing.invoices.index",
+            "active": "invoicing.invoices.*",
+            "params": { "type": "estimate" }
+        },
+        {
+            "label": "Invoices",
+            "route": "invoicing.invoices.index",
+            "active": "invoicing.invoices.*",
+            "params": { "type": "invoice" },
+            "default": true
+        },
+        {
+            "label": "Receipts",
+            "route": "invoicing.invoices.index",
+            "active": "invoicing.invoices.*",
+            "params": { "type": "sales_receipt" }
+        },
+        {
+            "label": "Credit notes",
+            "route": "invoicing.invoices.index",
+            "active": "invoicing.invoices.*",
+            "params": { "type": "credit_note" }
+        },
+        {
+            "label": "Recurring",
+            "route": "invoicing.recurring.index",
+            "active": "invoicing.recurring.*"
+        },
+        {
+            "label": "Payments",
+            "route": "invoicing.payments.index",
+            "active": "invoicing.payments.*"
+        },
+        {
+            "label": "Items",
+            "route": "invoicing.items.index",
+            "active": "invoicing.items.*"
+        }
+    ]
+}

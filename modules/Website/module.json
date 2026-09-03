@@ -1,0 +1,37 @@
+{
+    "name": "Website",
+    "slug": "website",
+    "label": "Website",
+    "description": "Public websites: their content, gallery, SEO, and the donations, volunteers and messages they collect.",
+    "icon": "website",
+    "order": 5,
+    "enabled": true,
+    "requires_plan": null,
+    "sections": [
+        {
+            "label": "Sites",
+            "route": "website.index",
+            "active": "website.index"
+        },
+        {
+            "label": "Content",
+            "route": "website.content.index",
+            "active": "website.content.*"
+        },
+        {
+            "label": "Gallery",
+            "route": "website.gallery.index",
+            "active": "website.gallery.*"
+        },
+        {
+            "label": "Donations",
+            "route": "website.donations.index",
+            "active": "website.donations.*"
+        },
+        {
+            "label": "Volunteers",
+            "route": "website.volunteers.index",
+            "active": "website.volunteers.*"
+        }
+    ]
+}

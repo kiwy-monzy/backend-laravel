@@ -1,0 +1,52 @@
+{
+    "name": "Accounting",
+    "slug": "accounting",
+    "label": "Accounting",
+    "description": "Chart of accounts and journal entries behind the ledger.",
+    "icon": "accounting",
+    "order": 110,
+    "enabled": true,
+    "requires_plan": "enterprise",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "accounting.index",
+            "active": "accounting.index"
+        },
+        {
+            "label": "Accounts",
+            "route": "accounting.records.index",
+            "active": "accounting.records.*"
+        },
+        {
+            "label": "Journal",
+            "route": "accounting.journal.index",
+            "active": "accounting.journal.index"
+        },
+        {
+            "label": "Ledger",
+            "route": "accounting.journal.ledger",
+            "active": "accounting.journal.ledger"
+        },
+        {
+            "label": "Trial balance",
+            "route": "accounting.journal.trial",
+            "active": "accounting.journal.trial"
+        },
+        {
+            "label": "Statements",
+            "route": "accounting.journal.statements",
+            "active": "accounting.journal.statements"
+        },
+        {
+            "label": "Fixed assets",
+            "route": "accounting.journal.assets",
+            "active": "accounting.journal.assets"
+        },
+        {
+            "label": "Customer ledger",
+            "route": "accounting.journal.customers",
+            "active": "accounting.journal.customers"
+        }
+    ]
+}

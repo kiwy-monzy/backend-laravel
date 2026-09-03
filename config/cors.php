@@ -1,0 +1,14 @@
+<?php
+
+$origins = explode(',', (string) env('CORS_ORIGINS', '*'));
+
+return [
+    'paths' => ['*'],
+    'allowed_methods' => ['*'],
+    'allowed_origins' => array_map('trim', $origins),
+    'allowed_origins_patterns' => [],
+    'allowed_headers' => ['*'],
+    'exposed_headers' => [],
+    'max_age' => 0,
+    'supports_credentials' => false,
+];

@@ -1,0 +1,22 @@
+{
+    "name": "Bookings",
+    "slug": "bookings",
+    "label": "Bookings",
+    "description": "Services, staff availability and appointments.",
+    "icon": "bookings",
+    "order": 90,
+    "enabled": true,
+    "requires_plan": "professional",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "bookings.index",
+            "active": "bookings.index"
+        },
+        {
+            "label": "Bookings",
+            "route": "bookings.records.index",
+            "active": "bookings.records.*"
+        }
+    ]
+}

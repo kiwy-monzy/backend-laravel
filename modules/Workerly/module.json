@@ -1,0 +1,22 @@
+{
+    "name": "Workerly",
+    "slug": "workerly",
+    "label": "Workforce",
+    "description": "Shifts and activities per employee - who worked on what, when, and against which contract.",
+    "icon": "workerly",
+    "order": 55,
+    "enabled": true,
+    "requires_plan": "professional",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "workerly.index",
+            "active": "workerly.index"
+        },
+        {
+            "label": "Workforce",
+            "route": "workerly.records.index",
+            "active": "workerly.records.*"
+        }
+    ]
+}

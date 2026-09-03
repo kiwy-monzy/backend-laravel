@@ -1,0 +1,22 @@
+{
+    "name": "Cart",
+    "slug": "cart",
+    "label": "Orders",
+    "description": "Sales orders before they become invoices - what a customer asked for and what has been fulfilled.",
+    "icon": "cart",
+    "order": 25,
+    "enabled": true,
+    "requires_plan": "starter",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "cart.index",
+            "active": "cart.index"
+        },
+        {
+            "label": "Orders",
+            "route": "cart.records.index",
+            "active": "cart.records.*"
+        }
+    ]
+}

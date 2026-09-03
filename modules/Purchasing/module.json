@@ -1,0 +1,22 @@
+{
+    "name": "Purchasing",
+    "slug": "purchasing",
+    "label": "Purchasing",
+    "description": "Purchase orders to vendors, and the bills that follow them.",
+    "icon": "purchasing",
+    "order": 60,
+    "enabled": true,
+    "requires_plan": "professional",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "purchasing.index",
+            "active": "purchasing.index"
+        },
+        {
+            "label": "Purchasing",
+            "route": "purchasing.records.index",
+            "active": "purchasing.records.*"
+        }
+    ]
+}

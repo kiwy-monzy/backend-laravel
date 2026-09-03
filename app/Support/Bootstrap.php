@@ -1,0 +1,497 @@
+<?php
+
+namespace App\Support;
+
+use App\Models\ContentSection;
+use App\Models\GalleryImage;
+use App\Models\Organization;
+use App\Models\OrganizationMember;
+use App\Models\OrganizationModule;
+use App\Models\StorageCollection;
+use App\Models\User;
+use App\Models\Website;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+
+/**
+ * The one place an installation is brought into existence.
+ *
+ * There used to be four: a provider that made the two accounts, an API
+ * endpoint that seeded content, and two migrations that quietly created
+ * organizations of their own. They disagreed — the provider seated the system
+ * admin inside FGE, the migration moved it to Knowlia — so what you got
+ * depended on the order things happened to run in. Everything is here now, and
+ * the migrations only migrate.
+ *
+ * Two accounts, because they are two different jobs:
+ *
+ *   admin      — runs the installation. Its own tenant (Knowlia), every module,
+ *                and no charity of its own to be confused with.
+ *   fge_owner  — runs FGE. Owns the organization, its team and its website.
+ *
+ * Every step is idempotent: `run()` fills in whatever is missing and never
+ * overwrites something a person has since edited, so it is safe on a fresh
+ * database, on a half-migrated one, and on every boot after that.
+ */
+final class Bootstrap
+{
+    public const ADMIN_USERNAME = 'admin';
+
+    public const OWNER_USERNAME = 'fge_owner';
+
+    public const OPERATOR_SLUG = 'knowlia';
+
+    public const TENANT_SLUG = 'fge';
+
+    /** Guard so a long-running process does not re-check on every request. */
+    private static bool $checked = false;
+
+    /**
+     * Run only when something is missing.
+     *
+     * The provider calls this on boot, which is every request, so the common
+     * case has to be two counts and nothing else.
+     */
+    public static function runIfNeeded(): void
+    {
+        if (self::$checked) {
+            return;
+        }
+
+        try {
+            if (! Schema::hasTable('users') || ! Schema::hasTable('organizations')) {
+                return;
+            }
+
+            // Cheap counts, one per thing `run()` is responsible for. They have
+            // to cover all of it, not just the accounts: an installation set up
+            // before the module seeding existed still has both users and both
+            // organizations, and checking only those would mean it never
+            // catches up.
+            $complete = User::whereIn('username', [self::ADMIN_USERNAME, self::OWNER_USERNAME])->count() === 2
+                && Organization::whereIn('slug', [self::OPERATOR_SLUG, self::TENANT_SLUG])->count() === 2
+                && Website::whereKey(Website::FGE_WEBSITE_ID)->exists()
+                && ContentSection::where('website_id', Website::FGE_WEBSITE_ID)->exists()
+                && (! Schema::hasTable('org_departments') || \Modules\Departments\Models\Department::exists());
+
+            if ($complete) {
+                self::$checked = true;
+
+                return;
+            }
+
+            self::run();
+            self::$checked = true;
+        } catch (\Throwable $e) {
+            // Mid-migration the tables exist but the columns may not yet. The
+            // next boot, after `migrate` finishes, gets a clean run — failing
+            // the request instead would make the migration itself unrunnable.
+        }
+    }
+
+    /** Bring the installation up to date. Safe to call repeatedly. */
+    public static function run(): void
+    {
+        $password = (string) env('BOOTSTRAP_PASSWORD', 'fgetanzania.123');
+
+        $admin = self::user(
+            self::ADMIN_USERNAME,
+            (string) env('BOOTSTRAP_ADMIN_EMAIL', 'admin@knowlia.site'),
+            'system_admin',
+            $password,
+        );
+
+        $owner = self::user(
+            self::OWNER_USERNAME,
+            (string) env('BOOTSTRAP_OWNER_EMAIL', 'owner@fge.or.tz'),
+            'owner',
+            $password,
+        );
+
+        // The operator's own tenant. Without one, whoever runs the platform has
+        // no Team page, no storage and no modules — only other people's.
+        $knowlia = self::organization(self::OPERATOR_SLUG, $admin, [
+            'name' => 'Knowlia',
+            'email' => 'hello@knowlia.co.tz',
+            'plan' => 'enterprise',
+            'subscription_status' => 'active',
+            'trial_ends_at' => null,
+        ]);
+
+        $fge = self::organization(self::TENANT_SLUG, $owner, [
+            'name' => 'FGE',
+            'email' => 'info@fge.or.tz',
+            'phone' => '+255 762 060 160',
+            'address' => 'Mkonze Dodoma – Tanzania',
+            'plan' => 'free_trial',
+            'subscription_status' => 'trialing',
+            'trial_ends_at' => now()->addDays(Organization::TRIAL_DAYS),
+        ]);
+
+        self::seat($admin, $knowlia);
+        self::seat($owner, $fge);
+
+        // Knowlia gets every module: it is the reference tenant and the one the
+        // operator demonstrates from. FGE gets what the system grants it, which
+        // is a decision for the admin screens rather than for this file.
+        self::grantAllModules($knowlia, $admin);
+
+        $website = self::website($fge, $owner);
+        self::content($website, $fge);
+        self::modules($website, $fge);
+    }
+
+    /**
+     * The same FGE content, in the module tables that own it.
+     *
+     * The website sections and the modules describe the same charity from two
+     * directions: `team` is the people the site lists *and* the seats
+     * Departments manages; `projects` is what the site advertises *and* what
+     * the Projects module tracks. Seeding only the sections left every module
+     * opening on an empty table, which is what `modules:check` kept reporting.
+     *
+     * Content stays the source: these are derived rows, created once and never
+     * overwritten, so a project renamed in the module does not snap back.
+     */
+    private static function modules(Website $website, Organization $organization): void
+    {
+        $seed = self::fixture();
+
+        self::seedDepartments($organization, $seed['team']['members'] ?? []);
+        self::seedProjects($organization, $seed['projects']['items'] ?? []);
+        self::seedAppointments($organization, $seed['events']['items'] ?? []);
+        self::seedUploads($website, $organization, $seed['gallery']['images'] ?? []);
+    }
+
+    /**
+     * The team's groupings become departments, and each person a seat.
+     *
+     * A seat without a `user_id` is a person on the team who has no login —
+     * which is most of a charity's board, and what `allow_seats_without_a_login`
+     * made room for.
+     */
+    private static function seedDepartments(Organization $organization, array $members): void
+    {
+        if (! Schema::hasTable('org_departments') || $members === []) {
+            return;
+        }
+
+        $groups = [];
+        foreach ($members as $member) {
+            $groups[$member['category'] ?: 'Board'][] = $member;
+        }
+
+        foreach ($groups as $name => $people) {
+            $department = \Modules\Departments\Models\Department::firstOrCreate(
+                ['organization_id' => $organization->id, 'name' => $name],
+                [
+                    'id' => (string) Str::uuid(),
+                    'code' => Str::upper(Str::substr(Str::slug($name), 0, 6)),
+                    'head' => $people[0]['name'] ?? null,
+                    'active' => true,
+                ],
+            );
+
+            foreach ($people as $position => $person) {
+                OrganizationMember::firstOrCreate(
+                    ['organization_id' => $organization->id, 'person_name' => $person['name']],
+                    [
+                        'role' => 'employee',
+                        'active' => true,
+                        'department_id' => $department->id,
+                        'collection' => Str::lower($name),
+                        'job_title' => $person['role'] ?? null,
+                        'public_title' => $person['role'] ?? null,
+                        'photo_url' => $person['image'] ?: null,
+                        'show_on_website' => true,
+                        'position' => $position,
+                    ],
+                );
+            }
+        }
+    }
+
+    private static function seedProjects(Organization $organization, array $items): void
+    {
+        if (! Schema::hasTable('projects_records')) {
+            return;
+        }
+
+        foreach ($items as $item) {
+            \Modules\Projects\Models\Project::firstOrCreate(
+                ['organization_id' => $organization->id, 'name' => $item['title']],
+                [
+                    'id' => $item['id'] ?? (string) Str::uuid(),
+                    'code' => Str::upper(Str::substr(Str::slug($item['title']), 0, 8)),
+                    // The site's vocabulary is "ongoing"; the module's is "active".
+                    'status' => ($item['status'] ?? 'ongoing') === 'ongoing' ? 'active' : 'completed',
+                    'billing_method' => 'non_billable',
+                    'description' => $item['description'] ?? null,
+                ],
+            );
+        }
+    }
+
+    /** The site's events are the bookings module's appointments. */
+    private static function seedAppointments(Organization $organization, array $items): void
+    {
+        if (! Schema::hasTable('bookings_appointments')) {
+            return;
+        }
+
+        foreach ($items as $item) {
+            $startsAt = self::eventStart($item);
+
+            \Modules\Bookings\Models\Appointment::firstOrCreate(
+                ['organization_id' => $organization->id, 'service' => $item['title']],
+                [
+                    'id' => (string) Str::uuid(),
+                    'customer' => $organization->name,
+                    'status' => $startsAt && $startsAt->isPast() ? 'completed' : 'booked',
+                    'starts_at' => $startsAt,
+                    'duration_minutes' => 120,
+                    'location' => $item['location'] ?? null,
+                    'notes' => $item['description'] ?? null,
+                ],
+            );
+        }
+    }
+
+    /** `2025-02-15` + `10:00 AM`, or midnight when the time will not parse. */
+    private static function eventStart(array $event): ?\Illuminate\Support\Carbon
+    {
+        $date = $event['date'] ?? null;
+
+        if (! $date) {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Carbon::parse(trim($date . ' ' . ($event['time'] ?? '')));
+        } catch (\Throwable $e) {
+            try {
+                return \Illuminate\Support\Carbon::parse($date);
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Gallery pictures are files, so Storage should know about them.
+     *
+     * They land in the organization's `website` collection — the one
+     * StorageCollection::seedFor describes as "images used on the public site".
+     */
+    private static function seedUploads(Website $website, Organization $organization, array $images): void
+    {
+        if (! Schema::hasTable('uploads') || $images === []) {
+            return;
+        }
+
+        $collection = StorageCollection::where('organization_id', $organization->id)
+            ->where('slug', 'website')
+            ->first();
+
+        foreach ($images as $image) {
+            $url = $image['url'] ?? '';
+
+            if ($url === '' || Str::startsWith($url, 'data:')) {
+                continue;
+            }
+
+            \App\Models\Upload::firstOrCreate(
+                ['url' => $url],
+                [
+                    'id' => (string) Str::uuid(),
+                    'website_id' => $website->id,
+                    'organization_id' => $organization->id,
+                    'collection_id' => $collection?->id,
+                    'filename' => basename(parse_url($url, PHP_URL_PATH) ?: $url),
+                    'mime' => self::mimeFor($url),
+                    'size' => 0,
+                    'path' => ltrim(Str::after($url, '/storage/'), '/'),
+                ],
+            );
+        }
+    }
+
+    private static function mimeFor(string $url): string
+    {
+        return match (Str::lower(pathinfo(parse_url($url, PHP_URL_PATH) ?: $url, PATHINFO_EXTENSION))) {
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            default => 'image/jpeg',
+        };
+    }
+
+    /**
+     * An account with the role it is meant to hold.
+     *
+     * A pre-existing account keeps its password — this is not a way to reset
+     * one — but its role and organization are corrected, because those are what
+     * the old split bootstrap got wrong.
+     */
+    private static function user(string $username, string $email, string $role, string $password): User
+    {
+        $user = User::where('username', $username)->first();
+
+        if (! $user) {
+            return User::create([
+                'id' => (string) Str::uuid(),
+                'username' => $username,
+                'email' => $email,
+                'password_hash' => Hash::make($password),
+                'role' => $role,
+                'active' => true,
+                'profile_image' => null,
+            ]);
+        }
+
+        if ($user->role !== $role) {
+            $user->update(['role' => $role]);
+        }
+
+        return $user;
+    }
+
+    /** @param array<string,mixed> $attributes */
+    private static function organization(string $slug, User $owner, array $attributes): Organization
+    {
+        $organization = Organization::where('slug', $slug)->first();
+
+        if (! $organization) {
+            $organization = Organization::create($attributes + [
+                'id' => (string) Str::uuid(),
+                'slug' => $slug,
+                'owner_id' => $owner->id,
+                'country' => 'TZ',
+                'currency' => 'TZS',
+            ]);
+        } elseif ($organization->owner_id !== $owner->id) {
+            $organization->update(['owner_id' => $owner->id]);
+        }
+
+        if ($owner->organization_id !== $organization->id) {
+            $owner->update(['organization_id' => $organization->id]);
+        }
+
+        StorageCollection::seedFor($organization);
+
+        return $organization;
+    }
+
+    /** The owner administers their own organization. */
+    private static function seat(User $user, Organization $organization): void
+    {
+        OrganizationMember::firstOrCreate(
+            ['organization_id' => $organization->id, 'user_id' => $user->id],
+            ['role' => 'admin', 'active' => true],
+        );
+    }
+
+    private static function grantAllModules(Organization $organization, User $grantedBy): void
+    {
+        foreach (Modules::slugs() as $module) {
+            OrganizationModule::firstOrCreate(
+                ['organization_id' => $organization->id, 'module' => $module],
+                ['granted' => true, 'granted_by' => $grantedBy->id],
+            );
+        }
+    }
+
+    private static function website(Organization $organization, User $owner): Website
+    {
+        $website = Website::firstOrCreate(
+            ['id' => Website::FGE_WEBSITE_ID],
+            [
+                'owner_id' => $owner->id,
+                'organization_id' => $organization->id,
+                'name' => 'FGE',
+                'slug' => 'fge',
+                'domain' => 'fge.or.tz',
+                'is_active' => true,
+                'template' => 'template0',
+                'theme' => 'fge-custom',
+            ],
+        );
+
+        if ($owner->website_id !== $website->id) {
+            $owner->update(['website_id' => $website->id]);
+        }
+
+        return $website;
+    }
+
+    /**
+     * The site's starting content, from the fixture.
+     *
+     * `general` — identity, contact, social links, visibility — is the
+     * organization's profile rather than a content row, so it is merged into
+     * the profile and the profile's own values win: a charity that has already
+     * edited its address does not get the fixture's back.
+     */
+    private static function content(Website $website, Organization $organization): void
+    {
+        $seed = self::fixture();
+
+        if (isset($seed['general'])) {
+            $organization->update([
+                'general' => array_replace_recursive($seed['general'], $organization->general ?? []),
+            ]);
+        }
+
+        $locale = $website->default_language ?: 'en';
+
+        foreach ($seed as $section => $data) {
+            if ($section === 'general' || ! in_array($section, Website::SECTIONS, true)) {
+                continue;
+            }
+
+            ContentSection::firstOrCreate(
+                ['website_id' => $website->id, 'section' => $section, 'locale' => $locale],
+                ['data' => $data],
+            );
+        }
+
+        foreach ($seed['gallery']['images'] ?? [] as $image) {
+            if (($image['id'] ?? '') === '') {
+                continue;
+            }
+
+            GalleryImage::firstOrCreate(
+                ['id' => (string) $image['id']],
+                [
+                    'website_id' => $website->id,
+                    'url' => $image['url'] ?? '',
+                    'caption' => $image['caption'] ?? '',
+                    'disabled' => $image['disabled'] ?? false,
+                ],
+            );
+        }
+    }
+
+    /**
+     * The starting content, carried over from the Rust server's `site_content`
+     * table. Kept as data in `database/seeders/fixtures/` rather than a string
+     * constant in a controller, which is where half of it used to live.
+     *
+     * @return array<string,mixed>
+     */
+    private static function fixture(): array
+    {
+        $path = database_path('seeders/fixtures/fge_content.json');
+
+        if (! File::exists($path)) {
+            return [];
+        }
+
+        $data = json_decode(File::get($path), true);
+
+        return is_array($data) ? $data : [];
+    }
+}

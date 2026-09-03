@@ -1,0 +1,37 @@
+{
+    "name": "Reports",
+    "slug": "reports",
+    "label": "Reports",
+    "description": "Reads across Invoicing, Expenses, Inventory and CRM to answer business questions. Owns no data of its own.",
+    "icon": "reports",
+    "order": 190,
+    "enabled": true,
+    "requires_plan": null,
+    "sections": [
+        {
+            "label": "All reports",
+            "route": "reports.index",
+            "active": "reports.index"
+        },
+        {
+            "label": "Financial",
+            "route": "reports.financial",
+            "active": "reports.financial"
+        },
+        {
+            "label": "Sales",
+            "route": "reports.sales",
+            "active": "reports.sales"
+        },
+        {
+            "label": "Customers",
+            "route": "reports.customers",
+            "active": "reports.customers"
+        },
+        {
+            "label": "Inventory",
+            "route": "reports.inventory",
+            "active": "reports.inventory"
+        }
+    ]
+}

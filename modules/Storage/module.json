@@ -1,0 +1,17 @@
+{
+    "name": "Storage",
+    "slug": "storage",
+    "label": "Storage",
+    "description": "Storage module.",
+    "icon": "storage",
+    "order": 200,
+    "enabled": true,
+    "requires_plan": null,
+    "sections": [
+        {
+            "label": "Collections",
+            "route": "storage.index",
+            "active": "storage.index"
+        }
+    ]
+}

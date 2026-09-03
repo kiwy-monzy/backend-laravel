@@ -1,0 +1,496 @@
+/* Dashboard widgets, ported from the React dashboard package.
+ *
+ * The clock's CSS is carried over as-is — it is a hand-tuned analog face where
+ * every hand length, shadow and transform origin was arrived at by eye, and
+ * "improving" it while porting is how it stops looking right. Only the sizing
+ * wrapper and the dark-surface colours are new. */
+
+/* ── Holographic card (packages/ui/src/components/holographic-card.jsx) ────── */
+.holo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+}
+.holo-stage {
+    position: relative;
+    width: 320px;
+    height: 420px;
+    perspective: 1500px;
+    cursor: pointer;
+    border-radius: 16px;
+}
+.holo-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+    transform-style: preserve-3d;
+    transition: transform .7s cubic-bezier(.2, .8, .2, 1.2);
+}
+.holo-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    overflow: hidden;
+    backface-visibility: hidden;
+    border: 2px solid rgba(255, 255, 255, .85);
+}
+.holo-front { background: linear-gradient(135deg, #000 60%, #1a1a1a 100%); z-index: 2; }
+.holo-back {
+    background: linear-gradient(135deg, #1a1a1a 60%, #000 100%);
+    transform: rotateY(180deg);
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.holo-grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(90deg, rgba(255, 255, 255, .04) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255, 255, 255, .04) 1px, transparent 1px);
+    background-size: 32px 32px;
+}
+/* The shine follows the pointer; `screen` is what makes it read as a sheen on
+   the surface rather than a white blob painted over it. */
+.holo-shine {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    transition: background .3s;
+    background: radial-gradient(circle at 50% 50%,
+        rgba(255, 255, 255, .18) 0%, rgba(255, 255, 255, .08) 40%, transparent 70%);
+}
+.holo-head { display: flex; align-items: flex-start; padding: 12px 12px 8px; position: relative; z-index: 10; }
+.holo-mark {
+    display: flex; align-items: center; justify-content: center;
+    height: 48px; width: 48px; border-radius: 999px;
+    background: rgba(255, 255, 255, .1); color: #fff;
+    font-size: 20px; font-weight: 700;
+}
+.holo-title { color: #fff; font-size: 26px; line-height: 1; letter-spacing: .06em; font-weight: 800; }
+.holo-sub { color: rgba(255, 255, 255, .9); font-size: 13px; letter-spacing: .02em; }
+.holo-rule { height: 2px; width: 100%; background: rgba(255, 255, 255, .7); margin: 4px 0 8px; }
+.holo-body { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 8px 16px; position: relative; z-index: 10; }
+.holo-photo {
+    width: 100%; height: 168px; border-radius: 8px; overflow: hidden;
+    background: #223; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .5);
+    font-size: 54px; font-weight: 700; color: rgba(255, 255, 255, .35);
+}
+.holo-name { color: #fff; font-size: 21px; letter-spacing: .02em; text-align: center; font-weight: 700; }
+.holo-meta { color: rgba(255, 255, 255, .6); font-size: 12px; text-align: center; }
+.holo-role { color: rgba(255, 255, 255, .45); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; text-align: center; }
+.holo-foot {
+    position: absolute; bottom: 0; left: 0; width: 100%;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 18px; background: rgba(0, 0, 0, .2); z-index: 20;
+}
+.holo-bars { display: flex; gap: 2px; }
+.holo-bars i { display: block; background: #fff; border-radius: 2px; }
+.holo-valid { color: #fff; font-weight: 700; font-size: 13px; letter-spacing: .18em; }
+.holo-strip { width: 100%; max-width: 260px; height: 40px; background: #000; border-radius: 4px; margin: 32px 0 24px; }
+
+/* ── Calendar (packages/dashboard/src/components/Calendar.jsx) ─────────────── */
+.cal { --cal-card: #f3f4f6; --cal-ink: #1a1a1a; }
+.cal-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.cal-nav {
+    width: 34px; height: 34px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+    cursor: pointer; font-size: 16px; line-height: 1;
+}
+.cal-nav:hover { border-color: var(--accent); color: var(--accent); }
+.cal-title { font-weight: 700; letter-spacing: .04em; font-size: 15px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-dow {
+    text-align: center; font-size: 11px; color: var(--dim);
+    text-transform: uppercase; letter-spacing: .06em; padding-bottom: 2px;
+}
+.cal-day {
+    position: relative;
+    aspect-ratio: 1 / .92;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    display: flex; align-items: center; justify-content: center;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+}
+.cal-day.out { opacity: .32; }
+.cal-day.today { background: #ffab2e; border-color: #ffab2e; color: #1a1a1a; font-weight: 700; }
+/* A day with incidents. The count is the point — a dot alone says "something
+   happened", which is not what a road register is for. */
+.cal-day.has { border-color: var(--bad); }
+.cal-day .pip {
+    position: absolute; top: 3px; right: 4px;
+    min-width: 15px; height: 15px; padding: 0 3px;
+    border-radius: 999px; background: var(--bad); color: #1b0703;
+    font-size: 10px; font-weight: 700; line-height: 15px; text-align: center;
+}
+.cal-day.linked { cursor: pointer; }
+.cal-day.linked:hover { border-color: var(--accent); }
+
+/* ── Analog + digital clock (packages/dashboard/src/components/Clock.jsx) ──── */
+.clock-wrap { display: flex; justify-content: center; }
+/* The original is sized in `em` off a 30em face; scaling the wrapper keeps
+   every hand and marker proportional without touching the values below. */
+#clock { font-size: 9px; position: relative; margin: 0 auto; width: 30em; height: 30em; }
+#clock ul { list-style: none; margin: 0; padding: 0; }
+#clock .frame-face {
+    position: relative; width: 30em; height: 30em; border-radius: 15em;
+    background: linear-gradient(to bottom, #f9f9f9, #666);
+    box-shadow: rgba(0, 0, 0, .8) .5em .5em 4em;
+}
+#clock .frame-face:before {
+    content: ''; width: 29.4em; height: 29.4em; border-radius: 14.7em;
+    position: absolute; top: .3em; left: .3em;
+    background:
+        linear-gradient(135deg, rgba(246,248,249,0) 0%, rgba(229,235,238,1) 50%, rgba(205,212,217,1) 51%, rgba(245,247,249,0) 100%),
+        radial-gradient(ellipse at center, rgba(246,248,249,1) 0%, rgba(229,235,238,1) 65%, rgba(205,212,217,1) 66%, rgba(245,247,249,1) 100%);
+}
+#clock .frame-face:after {
+    content: ''; width: 28em; height: 28em; border-radius: 14.2em;
+    position: absolute; top: .9em; left: .9em;
+    box-shadow: inset rgba(0, 0, 0, .2) .2em .2em 1em;
+    border: .1em solid rgba(0, 0, 0, .2);
+    background: linear-gradient(to bottom, #fff, #ccc);
+}
+#clock .minute-marks li {
+    display: block; width: .2em; height: .6em; background: #929394;
+    position: absolute; top: 50%; left: 50%; margin: -.4em 0 0 -.1em;
+}
+#clock .digits {
+    width: 30em; height: 30em; border-radius: 15em;
+    position: absolute; top: 0; left: 50%; margin-left: -15em;
+}
+#clock .digits li {
+    font-size: 1.6em; display: block; width: 1.6em; height: 1.6em;
+    position: absolute; top: 50%; left: 50%; line-height: 1.6em;
+    text-align: center; margin: -.8em 0 0 -.8em; font-weight: bold; color: #1a1a1a;
+}
+#clock .digits li:nth-child(1) { transform: translate(3.9em, -6.9em); }
+#clock .digits li:nth-child(2) { transform: translate(6.9em, -4em); }
+#clock .digits li:nth-child(3) { transform: translate(8em, 0); }
+#clock .digits li:nth-child(4) { transform: translate(6.8em, 4em); }
+#clock .digits li:nth-child(5) { transform: translate(3.9em, 6.9em); }
+#clock .digits li:nth-child(6) { transform: translate(0, 8em); }
+#clock .digits li:nth-child(7) { transform: translate(-3.9em, 6.9em); }
+#clock .digits li:nth-child(8) { transform: translate(-6.8em, 4em); }
+#clock .digits li:nth-child(9) { transform: translate(-8em, 0); }
+#clock .digits li:nth-child(10) { transform: translate(-6.9em, -4em); }
+#clock .digits li:nth-child(11) { transform: translate(-3.9em, -6.9em); }
+#clock .digits li:nth-child(12) { transform: translate(0, -8em); }
+#clock .digits:before {
+    content: ''; width: 1.6em; height: 1.6em; border-radius: .8em;
+    position: absolute; top: 50%; left: 50%; margin: -.8em 0 0 -.8em; background: #121314;
+}
+#clock .digits:after {
+    content: ''; width: 4em; height: 4em; border-radius: 2.2em;
+    position: absolute; top: 50%; left: 50%; margin: -2.1em 0 0 -2.1em;
+    border: .1em solid #c6c6c6;
+    background: radial-gradient(ellipse at center, rgba(200,200,200,0), rgba(190,190,190,1) 90%, rgba(130,130,130,1) 100%);
+}
+#clock .hours-hand {
+    width: .8em; height: 7em; border-radius: 0 0 .9em .9em; background: #232425;
+    position: absolute; bottom: 50%; left: 50%; margin: 0 0 -.8em -.4em;
+    box-shadow: #232425 0 0 2px; transform-origin: .4em 6.2em;
+}
+#clock .hours-hand:before {
+    content: ''; background: inherit; width: 1.8em; height: .8em;
+    border-radius: 0 0 .8em .8em; box-shadow: #232425 0 0 1px;
+    position: absolute; top: -.7em; left: -.5em;
+}
+#clock .hours-hand:after {
+    content: ''; width: 0; height: 0;
+    border: .9em solid #232425; border-width: 0 .9em 2.4em .9em;
+    border-left-color: transparent; border-right-color: transparent;
+    position: absolute; top: -3.1em; left: -.5em;
+}
+#clock .minutes-hand {
+    width: .8em; height: 12.5em; border-radius: .5em; background: #343536;
+    position: absolute; bottom: 50%; left: 50%; margin: 0 0 -1.5em -.4em;
+    box-shadow: #343536 0 0 2px; transform-origin: .4em 11em;
+}
+#clock .seconds-hand {
+    width: .2em; height: 14em; border-radius: .1em .1em 0 0/10em 10em 0 0; background: #c00;
+    position: absolute; bottom: 50%; left: 50%; margin: 0 0 -2em -.1em;
+    box-shadow: rgba(0, 0, 0, .8) 0 0 .2em; transform-origin: .1em 12em;
+}
+#clock .seconds-hand:after {
+    content: ''; width: 1.4em; height: 1.4em; border-radius: .7em; background: inherit;
+    position: absolute; left: -.65em; bottom: 1.35em;
+}
+#clock .seconds-hand:before {
+    content: ''; width: .8em; height: 3em;
+    border-radius: .2em .2em .4em .4em/.2em .2em 2em 2em;
+    box-shadow: rgba(0, 0, 0, .8) 0 0 .2em; background: inherit;
+    position: absolute; left: -.35em; bottom: -3em;
+}
+#clock .digital-wrap {
+    width: 9em; height: 3em; border: .1em solid #222; border-radius: .2em;
+    position: absolute; top: 50%; left: 50%; margin: 3em 0 0 -4.5em;
+    overflow: hidden; background: linear-gradient(to bottom, #4c4c4c 0%, #0f0f0f 100%);
+    display: flex;
+}
+#clock .digital-wrap span {
+    flex: 1; border-right: .1em solid #000; color: #ddd;
+    font-family: Consolas, monaco, monospace; font-size: 1.5em;
+    line-height: 2; letter-spacing: 2px; text-align: center;
+}
+#clock .digital-wrap span:last-child { border-right: none; }
+
+/* ── Calendar (packages/dashboard/src/components/Calendar.jsx) ─────────────── */
+.cal { --cal-card: #f3f4f6; --cal-ink: #1a1a1a; }
+.cal-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.cal-nav {
+    width: 34px; height: 34px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+    cursor: pointer; font-size: 16px; line-height: 1;
+}
+.cal-nav:hover { border-color: var(--accent); color: var(--accent); }
+.cal-title { font-weight: 700; letter-spacing: .04em; font-size: 15px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-dow {
+    text-align: center; font-size: 11px; color: var(--dim);
+    text-transform: uppercase; letter-spacing: .06em; padding-bottom: 2px;
+}
+.cal-day {
+    position: relative;
+    aspect-ratio: 1 / .92;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    display: flex; align-items: center; justify-content: center;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+}
+.cal-day.out { opacity: .32; }
+.cal-day.today { background: #ffab2e; border-color: #ffab2e; color: #1a1a1a; font-weight: 700; }
+/* A day with incidents. The count is the point — a dot alone says "something
+   happened", which is not what a road register is for. */
+.cal-day.has { border-color: var(--bad); }
+.cal-day .pip {
+    position: absolute; top: 3px; right: 4px;
+    min-width: 15px; height: 15px; padding: 0 3px;
+    border-radius: 999px; background: var(--bad); color: #1b0703;
+    font-size: 10px; font-weight: 700; line-height: 15px; text-align: center;
+}
+.cal-day.linked { cursor: pointer; }
+.cal-day.linked:hover { border-color: var(--accent); }
+
+/* ── Analog + digital clock (packages/dashboard/src/components/Clock.jsx) ──── */
+.clock-wrap { display: flex; justify-content: center; }
+/* The original is sized in `em` off a 30em face; scaling the wrapper keeps
+   every hand and marker proportional without touching the values below. */
+#clock { font-size: 9px; position: relative; margin: 0 auto; width: 30em; height: 30em; }
+#clock ul { list-style: none; margin: 0; padding: 0; }
+#clock .frame-face {
+    position: relative; width: 30em; height: 30em; border-radius: 15em;
+    background: linear-gradient(to bottom, #f9f9f9, #666);
+    box-shadow: rgba(0, 0, 0, .8) .5em .5em 4em;
+}
+#clock .frame-face:before {
+    content: ''; width: 29.4em; height: 29.4em; border-radius: 14.7em;
+    position: absolute; top: .3em; left: .3em;
+    background:
+        linear-gradient(135deg, rgba(246,248,249,0) 0%, rgba(229,235,238,1) 50%, rgba(205,212,217,1) 51%, rgba(245,247,249,0) 100%),
+        radial-gradient(ellipse at center, rgba(246,248,249,1) 0%, rgba(229,235,238,1) 65%, rgba(205,212,217,1) 66%, rgba(245,247,249,1) 100%);
+}
+#clock .frame-face:after {
+    content: ''; width: 28em; height: 28em; border-radius: 14.2em;
+    position: absolute; top: .9em; left: .9em;
+    box-shadow: inset rgba(0, 0, 0, .2) .2em .2em 1em;
+    border: .1em solid rgba(0, 0, 0, .2);
+    background: linear-gradient(to bottom, #fff, #ccc);
+}
+#clock .minute-marks li {
+    display: block; width: .2em; height: .6em; background: #929394;
+    position: absolute; top: 50%; left: 50%; margin: -.4em 0 0 -.1em;
+}
+#clock .digits {
+    width: 30em; height: 30em; border-radius: 15em;
+    position: absolute; top: 0; left: 50%; margin-left: -15em;
+}
+#clock .digits li {
+    font-size: 1.6em; display: block; width: 1.6em; height: 1.6em;
+    position: absolute; top: 50%; left: 50%; line-height: 1.6em;
+    text-align: center; margin: -.8em 0 0 -.8em; font-weight: bold; color: #1a1a1a;
+}
+#clock .digits li:nth-child(1) { transform: translate(3.9em, -6.9em); }
+#clock .digits li:nth-child(2) { transform: translate(6.9em, -4em); }
+#clock .digits li:nth-child(3) { transform: translate(8em, 0); }
+#clock .digits li:nth-child(4) { transform: translate(6.8em, 4em); }
+#clock .digits li:nth-child(5) { transform: translate(3.9em, 6.9em); }
+#clock .digits li:nth-child(6) { transform: translate(0, 8em); }
+#clock .digits li:nth-child(7) { transform: translate(-3.9em, 6.9em); }
+#clock .digits li:nth-child(8) { transform: translate(-6.8em, 4em); }
+#clock .digits li:nth-child(9) { transform: translate(-8em, 0); }
+#clock .digits li:nth-child(10) { transform: translate(-6.9em, -4em); }
+#clock .digits li:nth-child(11) { transform: translate(-3.9em, -6.9em); }
+#clock .digits li:nth-child(12) { transform: translate(0, -8em); }
+#clock .digits:before {
+    content: ''; width: 1.6em; height: 1.6em; border-radius: .8em;
+    position: absolute; top: 50%; left: 50%; margin: -.8em 0 0 -.8em; background: #121314;
+}
+#clock .digits:after {
+    content: ''; width: 4em; height: 4em; border-radius: 2.2em;
+    position: absolute; top: 50%; left: 50%; margin: -2.1em 0 0 -2.1em;
+    border: .1em solid #c6c6c6;
+    background: radial-gradient(ellipse at center, rgba(200,200,200,0), rgba(190,190,190,1) 90%, rgba(130,130,130,1) 100%);
+}
+#clock .hours-hand {
+    width: .8em; height: 7em; border-radius: 0 0 .9em .9em; background: #232425;
+    position: absolute; bottom: 50%; left: 50%; margin: 0 0 -.8em -.4em;
+    box-shadow: #232425 0 0 2px; transform-origin: .4em 6.2em;
+}
+#clock .hours-hand:before {
+    content: ''; background: inherit; width: 1.8em; height: .8em;
+    border-radius: 0 0 .8em .8em; box-shadow: #232425 0 0 1px;
+    position: absolute; top: -.7em; left: -.5em;
+}
+#clock .hours-hand:after {
+    content: ''; width: 0; height: 0;
+    border: .9em solid #232425; border-width: 0 .9em 2.4em .9em;
+    border-left-color: transparent; border-right-color: transparent;
+    position: absolute; top: -3.1em; left: -.5em;
+}
+#clock .minutes-hand {
+    width: .8em; height: 12.5em; border-radius: .5em; background: #343536;
+    position: absolute; bottom: 50%; left: 50%; margin: 0 0 -1.5em -.4em;
+    box-shadow: #343536 0 0 2px; transform-origin: .4em 11em;
+}
+#clock .seconds-hand {
+    width: .2em; height: 14em; border-radius: .1em .1em 0 0/10em 10em 0 0; background: #c00;
+    position: absolute; bottom: 50%; left: 50%; margin: 0 0 -2em -.1em;
+    box-shadow: rgba(0, 0, 0, .8) 0 0 .2em; transform-origin: .1em 12em;
+}
+#clock .seconds-hand:after {
+    content: ''; width: 1.4em; height: 1.4em; border-radius: .7em; background: inherit;
+    position: absolute; left: -.65em; bottom: 1.35em;
+}
+#clock .seconds-hand:before {
+    content: ''; width: .8em; height: 3em;
+    border-radius: .2em .2em .4em .4em/.2em .2em 2em 2em;
+    box-shadow: rgba(0, 0, 0, .8) 0 0 .2em; background: inherit;
+    position: absolute; left: -.35em; bottom: -3em;
+}
+#clock .digital-wrap {
+    width: 9em; height: 3em; border: .1em solid #222; border-radius: .2em;
+    position: absolute; top: 50%; left: 50%; margin: 3em 0 0 -4.5em;
+    overflow: hidden; background: linear-gradient(to bottom, #4c4c4c 0%, #0f0f0f 100%);
+    display: flex;
+}
+#clock .digital-wrap span {
+    flex: 1; border-right: .1em solid #000; color: #ddd;
+    font-family: Consolas, monaco, monospace; font-size: 1.5em;
+    line-height: 2; letter-spacing: 2px; text-align: center;
+}
+#clock .digital-wrap span:last-child { border-right: none; }
+
+/* ── Status card (packages/dashboard/src/components/StatusCard.jsx) ────────── */
+/*
+ * The original's own class names and values: `.a`/`.d`/`.e`/`.f`/`.g` are the
+ * palette its 86 paths reference, `.h` is the 28px label, `.j` the 90px count,
+ * `.circle` the translucent disc behind the icon. Carried over so the artwork
+ * renders exactly as it was drawn.
+ */
+.statcard-container {
+    position: relative;
+    overflow: hidden;
+    border-radius: 19.5px;
+    display: block;
+    background: var(--sc-bg);
+}
+a.statcard-container:hover { text-decoration: none; filter: brightness(1.06); }
+
+/*
+ * **The card runs against the page, not with it.**
+ *
+ * On the light theme it is a dark card; on the dark theme it is a white one.
+ * That is deliberate — the artwork is high-contrast reds and greens, and a card
+ * that matched the page behind it would dissolve into it. Running the other way
+ * makes the row of counts read as objects sitting on the page.
+ */
+:root {
+    --sc-bg: #1a1a1a;
+    --sc-ink: #fafafa;
+    --sc-mesh: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 40%, #333 70%, #252525 100%);
+}
+:root[data-theme="dark"] {
+    --sc-bg: #fafafa;
+    --sc-ink: #1a1a1a;
+    --sc-mesh: linear-gradient(135deg, #e5e7eb 0%, #f3f4f6 40%, #d1d5db 70%, #cbd5e1 100%);
+}
+
+.statcard-container .gradient-overlay { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.statcard-container .gradient-mesh {
+    width: 100%; height: 100%;
+    background: var(--sc-mesh);
+    background-size: 200% 200%;
+    animation: gradient-mesh-shift 12s ease infinite;
+}
+@keyframes gradient-mesh-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* The artwork palette, straight from the original stylesheet. */
+.statcard-container .a { stroke-linecap: round; stroke-linejoin: round; }
+.statcard-container .d, .statcard-container .j { fill: #ae100f; }
+.statcard-container .e { fill: #62a035; }
+.statcard-container .f { fill: #ffab2e; }
+.statcard-container .g { fill: #498911; }
+
+/* Label and count. The original writes these against a fill that flips with
+   the theme; `--sc-ink` is that flip. The count stays red in both — it is the
+   one colour in the design that reads on either card. */
+.statcard-container .sc-h {
+    font-size: 28px;
+    font-family: "Luckiest Guy", "luckiest-guy-regular", cursive;
+    fill: var(--sc-ink);
+}
+.statcard-container .sc-j {
+    font-size: 90px;
+    font-family: "Luckiest Guy", "luckiest-guy-regular", cursive;
+    fill: #ae100f;
+}
+.statcard-container .sc-circle { fill: var(--sc-ink); opacity: .1; }
+.statcard-container .sc-icon-glyph { font-size: 26px; fill: var(--sc-ink); }
+
+/* ── Calendar (packages/dashboard/src/components/Calendar.jsx) ─────────────── */
+/*
+ * The card and the type follow the original: a light card with dark text, or
+ * the inverse under the dark theme — the React version drove both from a
+ * `theme` prop and a `cardBg`/`textFill` pair, which is what these two rules
+ * are.
+ */
+.cal-wrap { display: block; }
+.cal-wrap .cal-card { fill: #f3f4f6; }
+.cal-wrap .cal-month, .cal-wrap .cal-year {
+    fill: #1a1a1a; stroke: #f3f4f6; stroke-width: 1; font-size: 37px;
+    font-family: "Luckiest Guy", "luckiest-guy-regular", cursive;
+}
+.cal-wrap .cal-year { text-anchor: end; }
+.cal-wrap .cal-dow-t {
+    fill: #1a1a1a; font-size: 44px;
+    font-family: "Luckiest Guy", "luckiest-guy-regular", cursive;
+}
+:root[data-theme="dark"] .cal-wrap .cal-card { fill: #1a1a1a; }
+:root[data-theme="dark"] .cal-wrap .cal-month,
+:root[data-theme="dark"] .cal-wrap .cal-year { fill: #fafafa; stroke: #1a1a1a; }
+:root[data-theme="dark"] .cal-wrap .cal-dow-t { fill: #fafafa; }
+
+.cal-wrap .cal-btn { cursor: pointer; }
+.cal-wrap .cal-btn:hover circle { fill: #ffe9a8; }
+.cal-wrap .cal-linked { cursor: pointer; }
+.cal-wrap .cal-linked:hover rect { stroke: #ae100f; stroke-width: 3; }

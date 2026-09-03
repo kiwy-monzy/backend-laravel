@@ -1,0 +1,44 @@
+{
+    "name": "Procurement",
+    "slug": "procurement",
+    "label": "Procurement",
+    "description": "Purchase requests, the orders and supplier bills they become, and the goods received against them.",
+    "icon": "procurement",
+    "order": 100,
+    "enabled": true,
+    "requires_plan": "enterprise",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "procurement.index",
+            "active": "procurement.index"
+        },
+        {
+            "label": "Requests",
+            "route": "procurement.records.index",
+            "active": "procurement.records.*"
+        },
+        {
+            "label": "Orders",
+            "route": "procurement.documents.index",
+            "active": "procurement.documents.*",
+            "params": {
+                "type": "purchase_order"
+            },
+            "default": true
+        },
+        {
+            "label": "Bills",
+            "route": "procurement.documents.index",
+            "active": "procurement.documents.*",
+            "params": {
+                "type": "bill"
+            }
+        },
+        {
+            "label": "Receives",
+            "route": "purchasing.records.index",
+            "active": "purchasing.records.*"
+        }
+    ]
+}

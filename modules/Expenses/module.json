@@ -1,0 +1,22 @@
+{
+    "name": "Expenses",
+    "slug": "expenses",
+    "label": "Expenses",
+    "description": "Money going out: expense claims against accounts, with receipts and approval.",
+    "icon": "expenses",
+    "order": 30,
+    "enabled": true,
+    "requires_plan": "starter",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "expenses.index",
+            "active": "expenses.index"
+        },
+        {
+            "label": "Expenses",
+            "route": "expenses.records.index",
+            "active": "expenses.records.*"
+        }
+    ]
+}

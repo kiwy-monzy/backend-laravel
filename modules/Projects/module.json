@@ -1,0 +1,22 @@
+{
+    "name": "Projects",
+    "slug": "projects",
+    "label": "Projects",
+    "description": "Projects, their tasks and the hours logged against them.",
+    "icon": "projects",
+    "order": 50,
+    "enabled": true,
+    "requires_plan": "professional",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "projects.index",
+            "active": "projects.index"
+        },
+        {
+            "label": "Projects",
+            "route": "projects.records.index",
+            "active": "projects.records.*"
+        }
+    ]
+}

@@ -1,0 +1,27 @@
+{
+    "name": "Crm",
+    "slug": "crm",
+    "label": "Customers",
+    "description": "Leads and the customers they become, with billing details and payment terms.",
+    "icon": "crm",
+    "order": 10,
+    "enabled": true,
+    "requires_plan": null,
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "crm.index",
+            "active": "crm.index"
+        },
+        {
+            "label": "Leads",
+            "route": "crm.leads.index",
+            "active": "crm.leads.*"
+        },
+        {
+            "label": "Customers",
+            "route": "crm.customers.index",
+            "active": "crm.customers.*"
+        }
+    ]
+}

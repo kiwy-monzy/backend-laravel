@@ -1,0 +1,32 @@
+{
+    "name": "Inventory",
+    "slug": "inventory",
+    "label": "Inventory",
+    "description": "Stock on hand, the items it is held against, and the shipments that move it.",
+    "icon": "inventory",
+    "order": 40,
+    "enabled": true,
+    "requires_plan": "professional",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "inventory.index",
+            "active": "inventory.index"
+        },
+        {
+            "label": "Stock",
+            "route": "inventory.records.index",
+            "active": "inventory.records.*"
+        },
+        {
+            "label": "Items",
+            "route": "invoicing.items.index",
+            "active": "invoicing.items.*"
+        },
+        {
+            "label": "Shipments",
+            "route": "fulfillment.records.index",
+            "active": "fulfillment.records.*"
+        }
+    ]
+}

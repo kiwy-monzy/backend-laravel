@@ -1,0 +1,285 @@
+{
+  "general": {
+    "address": "Mkonze Dodoma – Tanzania",
+    "contact_email": "info@fge.or.tz",
+    "contact_phone": "+255 762 060 160",
+    "logo_text": "FGE",
+    "logo_url": "/uploads/1767193611937-FGE_words.png",
+    "site_name": "FGE",
+    "site_title": "Foundation for Gender Equality",
+    "social_links": {
+      "facebook": "https://www.facebook.com/profile.php?id=61577915570059",
+      "instagram": "https://www.instagram.com/fgetanzania/",
+      "linkedin": "https://www.linkedin.com/in/foundation-for-gender-equality-59889b327/",
+      "twitter": "#"
+    },
+    "theme_color": "green",
+    "visibility": {
+      "about": true,
+      "achievements": true,
+      "donate": true,
+      "footer": true,
+      "gallery": true,
+      "hero": true,
+      "projects": true,
+      "services": true,
+      "team": true,
+      "volunteer": true,
+      "blog": true,
+      "events": true
+    }
+  },
+  "hero": {
+    "title": "Empowering Women and Educating Youth to Transform Lives",
+    "description": "We are dedicated to bridging the gender gap and creating equal opportunities for all.",
+    "primary_button_text": "Get Involved",
+    "secondary_button_text": "Learn More",
+    "primary_button_link": "#volunteer",
+    "secondary_button_link": "#projects"
+  },
+  "about": {
+    "title": "About Us",
+    "description": "The Foundation for Gender Equality (FGE) is a non-profit organization...",
+    "mission": "To promote gender equality through education, advocacy, and economic empowerment.",
+    "vision": "Create a society where all individuals, regardless of their gender, have equal access to opportunities, resources, and rights. We are committed to challenging gender-based discrimination, advocating for policy change, and fostering a culture of inclusivity and respect."
+  },
+  "projects": {
+    "items": [
+      {
+        "description": "School Access Project (Provide school supplies)",
+        "id": "6b5621ba-e1cb-458b-8536-34d60577e07a",
+        "image": "",
+        "status": "ongoing",
+        "title": "Books for All"
+      },
+      {
+        "description": "Women’s Economic Empowerment Program (Offering short courses in tailoring, baking, crafts, digital skills, and financial literacy)",
+        "id": "23a042d5-7574-41ed-937d-9a950396e8d3",
+        "image": "",
+        "status": "ongoing",
+        "title": "Her Hustle Hub"
+      },
+      {
+        "description": "To enhance the knowledge and capacity of primary and secondary school pupils/students on gender equality, child rights, reproductive health, leadership, and positive decision-making, in order to build a strong foundation for respectful behavior, responsibility, and academic success.",
+        "id": "6caad201-b80c-42cb-92ca-3025dc08eb30",
+        "image": "",
+        "status": "ongoing",
+        "title": "Education for Equality (E4E)"
+      }
+    ]
+  },
+  "team": {
+    "members": [
+      {
+        "category": "Board",
+        "id": "c7a57aa8-8bc1-43b9-bf25-97d2b52af800",
+        "image": "",
+        "name": "Basuta Milanzi",
+        "role": "Chairperson"
+      },
+      {
+        "category": "Board",
+        "id": "0826a76a-e675-4f8f-9261-dee2dad58b30",
+        "image": "",
+        "name": "Patricia Montanus",
+        "role": "Secretary"
+      },
+      {
+        "category": "Board",
+        "id": "bbc744bd-95f5-4a1d-91f6-da57e3ff1237",
+        "image": "",
+        "name": "Calson Mushi",
+        "role": "Board Member"
+      },
+      {
+        "category": "Board",
+        "id": "f74f8d66-7684-455d-8496-f6005a023886",
+        "image": "",
+        "name": "Bruno Patrick",
+        "role": "Board Member"
+      },
+      {
+        "category": "Board",
+        "id": "bb583837-52ab-443c-bafb-60cdf4bac0a5",
+        "image": "",
+        "name": "Frenk Likambi",
+        "role": "Board Member"
+      }
+    ]
+  },
+  "gallery": {
+    "images": [
+      {
+        "id": "1767193287088",
+        "url": "/uploads/1767193287075-Practical_Tips_for_Men_on_Supporting_Gender_Equality.jpeg",
+        "caption": "Practical tips of men supporting gender equality",
+        "disabled": false
+      },
+      {
+        "id": "1767193293419",
+        "url": "/uploads/1767193293410-Download_Diversity_-_People_of_all_races_and_genders_together_for_free.jpeg",
+        "caption": "People of all gender together",
+        "disabled": false
+      }
+    ]
+  },
+  "blog": {
+    "posts": [
+      {
+        "id": "1768566067677",
+        "title": "Empowering Communities Through Sustainable Support",
+        "slug": "empowering-communities-through-sustainable-support",
+        "content": [
+          {
+            "type": "text",
+            "value": "FGE is committed to delivering sustainable engineering solutions that improve infrastructure while positively impacting communities and the environment."
+          }
+        ],
+        "excerpt": "",
+        "featured_image": "",
+        "author": "fge",
+        "publish_date": "2026-01-16",
+        "published": true,
+        "description": "in all times people do things that they do not know what they mean at all so today will do things that make sense to all the people",
+        "image": "/uploads/1768566065875-images.jpg"
+      }
+    ]
+  },
+  "events": {
+    "items": [
+      {
+        "id": "1",
+        "title": "Gender Equality Workshop",
+        "description": "Join us for an interactive workshop on promoting gender equality in our communities. Learn practical strategies for creating inclusive environments.",
+        "date": "2025-02-15",
+        "time": "10:00 AM",
+        "location": "Community Center, Dodoma",
+        "city": "Dodoma",
+        "category": "Workshop",
+        "attendees": 150,
+        "image_url": "/uploads/1767193297425-Taking_responsibility_in_your_relationship.jpeg",
+        "coordinates": [
+          -6.163,
+          35.7516
+        ],
+        "tags": [
+          "gender-equality",
+          "workshop",
+          "community"
+        ]
+      },
+      {
+        "id": "2",
+        "title": "Women's Empowerment Summit",
+        "description": "Annual summit bringing together women leaders and change-makers from across Tanzania to share experiences and build networks.",
+        "date": "2025-03-20",
+        "time": "9:00 AM",
+        "location": "Conference Hall, Dar es Salaam",
+        "city": "Dar es Salaam",
+        "category": "Summit",
+        "attendees": 500,
+        "image_url": "/uploads/1768565768790-WhatsApp_Image_2026-01-05_at_9.22.24_PM.jpeg",
+        "coordinates": [
+          -6.7924,
+          39.2083
+        ],
+        "tags": [
+          "women-empowerment",
+          "summit",
+          "leadership"
+        ]
+      },
+      {
+        "id": "3",
+        "title": "Community Training Program",
+        "description": "Free training program for community members on rights, advocacy, and creating positive social change.",
+        "date": "2025-02-28",
+        "time": "2:00 PM",
+        "location": "Community Center, Arusha",
+        "city": "Arusha",
+        "category": "Training",
+        "attendees": 75,
+        "image_url": "/uploads/1768565794198-WhatsApp_Image_2026-01-05_at_9.22.23_PM__2_.jpeg",
+        "coordinates": [
+          -3.3869,
+          36.6829
+        ],
+        "tags": [
+          "training",
+          "community",
+          "rights"
+        ]
+      },
+      {
+        "id": "4",
+        "title": "Fundraising Gala Dinner",
+        "description": "Annual fundraising event to support our programs and initiatives for gender equality across Tanzania.",
+        "date": "2025-04-10",
+        "time": "7:00 PM",
+        "location": "Golden Tulip Hotel, Dar es Salaam",
+        "city": "Dar es Salaam",
+        "category": "Fundraising",
+        "attendees": 200,
+        "image_url": "/uploads/1768565809093-WhatsApp_Image_2026-01-05_at_9.22.23_PM.jpeg",
+        "coordinates": [
+          -6.7924,
+          39.2083
+        ],
+        "tags": [
+          "fundraising",
+          "gala",
+          "charity"
+        ]
+      },
+      {
+        "id": "5",
+        "title": "Youth Leadership Conference",
+        "description": "Empowering young leaders to become advocates for gender equality and social justice in their communities.",
+        "date": "2025-03-05",
+        "time": "8:30 AM",
+        "location": "University of Dar es Salaam",
+        "city": "Dar es Salaam",
+        "category": "Conference",
+        "attendees": 300,
+        "image_url": "/uploads/1768566945838-crafting1-scaled.jpg",
+        "coordinates": [
+          -6.7924,
+          39.2083
+        ],
+        "tags": [
+          "youth",
+          "leadership",
+          "conference"
+        ]
+      }
+    ]
+  },
+  "theme": {
+    "primary_color": "#e42f2f",
+    "secondary_color": "#e9267c",
+    "tertiary_color": "#e9267c"
+  },
+  "chatbot": {
+    "enabled": true,
+    "mistral_api_key": "",
+    "qa_pairs": []
+  },
+  "donate": {
+    "currency": "TZS",
+    "title": "Together, We Can Build a Gender-Equal Tanzania",
+    "description": "Your contribution—no matter the size—can change a life. When you give, you're not just donating—you're investing in a future where everyone has equal rights, opportunities, and hope.",
+    "intro": "Support Our Cause",
+    "intro_description": "Your contribution makes a difference",
+    "payment_details": {
+      "bank_name": "CRDB Bank",
+      "account_name": "FGE",
+      "account_number": "015C001KN2KOO",
+      "swift_code": "CORUTZTZ"
+    },
+    "in_person_details": {
+      "organization_name": "Foundation for Gender Equality",
+      "address": "Dodoma – Tanzania",
+      "post_box": "P.O.BOX 1518, Mkonze"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+    "name": "ServiceHub",
+    "slug": "servicehub",
+    "label": "Service Hub",
+    "description": "On-demand services: the providers who supply them, the requests customers raise, and the bookings those become.",
+    "icon": "servicehub",
+    "order": 95,
+    "enabled": true,
+    "requires_plan": "professional",
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "servicehub.index",
+            "active": "servicehub.index"
+        },
+        {
+            "label": "Providers",
+            "route": "servicehub.providers.index",
+            "active": "servicehub.providers.*"
+        },
+        {
+            "label": "Services",
+            "route": "servicehub.services.index",
+            "active": "servicehub.services.*"
+        },
+        {
+            "label": "Requests",
+            "route": "servicehub.requests.index",
+            "active": "servicehub.requests.*",
+            "default": true
+        },
+        {
+            "label": "Bookings",
+            "route": "servicehub.bookings.index",
+            "active": "servicehub.bookings.*"
+        }
+    ]
+}

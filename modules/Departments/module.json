@@ -1,0 +1,22 @@
+{
+    "name": "Departments",
+    "slug": "departments",
+    "label": "Departments",
+    "description": "The organization's departments and who heads them.",
+    "icon": "departments",
+    "order": 120,
+    "enabled": true,
+    "requires_plan": null,
+    "sections": [
+        {
+            "label": "Overview",
+            "route": "departments.index",
+            "active": "departments.index"
+        },
+        {
+            "label": "Departments",
+            "route": "departments.records.index",
+            "active": "departments.records.*"
+        }
+    ]
+}

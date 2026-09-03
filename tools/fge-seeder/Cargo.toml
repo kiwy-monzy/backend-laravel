@@ -1,0 +1,24 @@
+# The FGE data seeder.
+#
+# Seeding lives here, in Rust, rather than in Laravel: generating a hundred
+# thousand rows through Eloquent means a hundred thousand model instantiations
+# and a PHP process that spends its life in the garbage collector. This writes
+# straight into the SQLite file in batched transactions, which is both faster by
+# orders of magnitude and honest about what it is — a bulk load, not domain code.
+#
+# It seeds BUSINESS data only. Website content is real, imported from the legacy
+# system, and this must never overwrite it.
+[package]
+name = "fge-seeder"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
+uuid = { version = "1", features = ["v4"] }
+rand = "0.8"
+clap = { version = "4", features = ["derive"] }
+chrono = "0.4"
+
+[profile.release]
+opt-level = 3

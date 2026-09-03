@@ -1,0 +1,387 @@
+/* FGE chrome (ported from RoadWatch) — the titlebar and sidebar from `tauri-plugin-decorum` and
+ * `tauri-plugin-sidebar`, ported to a web page.
+ *
+ * **Ported, not re-styled.** The measurements are the plugins' own: a 32px
+ * title bar, a 188px rail that collapses to 60px on a
+ * `0.2s cubic-bezier(0.4, 0, 0.2, 1)`, 36px neumorphic icon boxes with the
+ * same two-light box-shadow, the red gradient on the active icon, and the red
+ * tooltip that appears to the right when collapsed. What changed is where the
+ * values come from: the plugins hard-code `#f4f4f4` / `#1a1a1a` and watch for
+ * a `.dark` class, whereas this app already has a themed variable set on
+ * `:root`, so the `--sb-*` names are mapped onto it. The two palettes agree —
+ * the app's surfaces are #fafafa and #1a1a1a, which is what the plugin drew
+ * with — so nothing looks different for it.
+ *
+ * The desktop chrome also carried window controls and a drag region. Those are
+ * meaningless in a browser and are left out rather than faked.
+ */
+
+:root {
+    --sb-w: 188px;
+    --sb-w-collapsed: 60px;
+    --tb-h: 34px;
+
+    --sb-bg: var(--panel);
+    --sb-border: var(--line);
+    --sb-fg: var(--ink);
+    --sb-fg-muted: var(--dim);
+    --sb-hover: rgba(0, 0, 0, .05);
+    --sb-active-bg: #1a1a1a;
+    --sb-active-fg: #fafafa;
+    --sb-icon-bg: var(--panel);
+    --sb-icon-border: rgba(0, 0, 0, .08);
+    --sb-icon-shadow: 3px 3px 6px rgba(0, 0, 0, .10), -2px -2px 5px rgba(255, 255, 255, .5);
+    --sb-icon-hover-shadow: 4px 4px 10px rgba(0, 0, 0, .15), -3px -3px 8px rgba(255, 255, 255, .6);
+    --sb-footer-border: rgba(0, 0, 0, .06);
+}
+:root[data-theme="dark"] {
+    --sb-hover: rgba(255, 255, 255, .08);
+    --sb-active-bg: #fafafa;
+    --sb-active-fg: #1a1a1a;
+    --sb-icon-border: rgba(255, 255, 255, .08);
+    --sb-icon-shadow: 3px 3px 6px rgba(0, 0, 0, .25), -2px -2px 5px rgba(255, 255, 255, .04);
+    --sb-icon-hover-shadow: 4px 4px 10px rgba(0, 0, 0, .35), -3px -3px 8px rgba(255, 255, 255, .06);
+    --sb-footer-border: rgba(255, 255, 255, .04);
+}
+
+/* ── Title bar ────────────────────────────────────────────────────────────── */
+.tb {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    height: var(--tb-h);
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 10px;
+    background: var(--sb-bg);
+    border-bottom: 1px solid var(--sb-border);
+    user-select: none;
+}
+.tb-left { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.tb-logo {
+    width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0;
+    background: linear-gradient(145deg, #d63232, #b91c1c);
+}
+.tb-name { font-size: 12px; font-weight: 600; color: var(--sb-fg); text-decoration: none; }
+.tb-name:hover { text-decoration: none; }
+
+.tb-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; flex-shrink: 0;
+    border: none; background: none; color: var(--sb-fg-muted);
+    border-radius: 6px; cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+.tb-btn:hover { background: var(--sb-hover); color: var(--sb-fg); }
+.tb-btn svg { width: 16px; height: 16px; }
+
+/* Global search. Real search, against the register — see /search. */
+.tb-search { position: relative; width: 300px; max-width: 34vw; flex-shrink: 1; }
+.tb-search-inner {
+    display: flex; align-items: center; gap: 6px;
+    height: 24px; padding: 0 8px;
+    border: 1px solid var(--sb-border); border-radius: 8px;
+    background: var(--bg);
+}
+.tb-search-inner svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--sb-fg-muted); }
+.tb-search input {
+    flex: 1; min-width: 0; border: none; background: none; outline: none;
+    font: inherit; font-size: 12px; color: var(--sb-fg);
+}
+.tb-clear {
+    display: none; align-items: center; justify-content: center;
+    width: 16px; height: 16px; padding: 0; flex-shrink: 0;
+    border: none; border-radius: 50%; cursor: pointer; line-height: 0;
+    background: rgba(128, 128, 128, .35); color: #fff;
+}
+.tb-clear svg { width: 10px; height: 10px; }
+.tb-results {
+    position: absolute; left: 0; top: 30px; z-index: 1001;
+    width: 380px; max-width: 80vw; max-height: 60vh; overflow: auto;
+    display: none; padding: 4px;
+    background: var(--panel); color: var(--ink);
+    border: 1px solid var(--sb-border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+}
+.tb-results .tb-head {
+    padding: 6px 8px 7px; font-size: 11px; color: var(--sb-fg-muted);
+    border-bottom: 1px solid var(--sb-border); margin-bottom: 3px;
+}
+.tb-result {
+    display: block; width: 100%; text-align: left;
+    border: none; background: none; cursor: pointer;
+    padding: 7px 8px; border-radius: 8px; color: inherit; text-decoration: none;
+}
+.tb-result:hover { background: var(--sb-hover); text-decoration: none; }
+.tb-result .row { display: flex; align-items: center; gap: 6px; }
+.tb-kind {
+    font-size: 9px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--sb-fg-muted); background: var(--sb-hover);
+    padding: 1px 5px; border-radius: 4px; flex-shrink: 0;
+}
+.tb-title {
+    font-size: 12px; font-weight: 600; flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tb-snip { font-size: 11px; color: var(--sb-fg-muted); margin-top: 3px; }
+.tb-empty { padding: 8px; font-size: 12px; color: var(--sb-fg-muted); }
+
+.tb-spacer { flex: 1; }
+
+/* Language switcher — the decorum one, flags and all. */
+.tb-lang { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.tb-lang button {
+    display: flex; align-items: center; gap: 4px;
+    height: 22px; padding: 0 7px;
+    border: none; border-radius: 5px; cursor: pointer;
+    font: inherit; font-size: 11px; font-weight: 400; white-space: nowrap;
+    background: none; color: var(--sb-fg-muted);
+    transition: background .12s, color .12s;
+}
+.tb-lang button:hover { background: var(--sb-hover); }
+.tb-lang button.on {
+    background: rgba(99, 102, 241, .12); color: #4f46e5; font-weight: 700;
+    outline: 1px solid rgba(99, 102, 241, .3);
+}
+:root[data-theme="dark"] .tb-lang button.on {
+    background: rgba(165, 180, 252, .15); color: #a5b4fc;
+    outline-color: rgba(165, 180, 252, .3);
+}
+.tb-lang .flag { font-size: 14px; line-height: 1; }
+
+.tb-sep { width: 1px; height: 16px; background: var(--sb-border); flex-shrink: 0; }
+
+/* Profile corner. */
+.tb-user {
+    display: flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 8px; flex-shrink: 0;
+    border-radius: 6px; cursor: pointer; text-decoration: none;
+    color: var(--sb-fg); transition: background .12s;
+}
+.tb-user:hover { background: var(--sb-hover); text-decoration: none; }
+.tb-avatar {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #fff;
+    background: linear-gradient(145deg, #d63232, #b91c1c);
+}
+.tb-username {
+    font-size: 11px; font-weight: 500; max-width: 110px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tb-role {
+    font-size: 9px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--sb-fg-muted); border: 1px solid var(--sb-border);
+    border-radius: 999px; padding: 0 6px; flex-shrink: 0;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
+.sb {
+    position: fixed; top: var(--tb-h); left: 0; z-index: 900;
+    width: var(--sb-w); height: calc(100% - var(--tb-h));
+    display: flex; flex-direction: column;
+    background: var(--sb-bg);
+    border-right: 1px solid var(--sb-border);
+    overflow: hidden;
+    transition: width .2s cubic-bezier(.4, 0, .2, 1);
+    will-change: width;
+}
+/* One source of truth for the collapsed state: an attribute on <html>, set by
+   an inline script before the first paint. Class names on both the rail and the
+   body meant two things to keep in step, and they drifted — the body was
+   narrowed while the rail stayed wide, so the rail sat on top of the page. */
+:root[data-sb-collapsed="1"] .sb { width: var(--sb-w-collapsed); }
+/* The rail scrolls silently — the design has no scroll indicator on the
+   sidebar, so scrolling stays available but the track is gone. The footer
+   below is `flex-shrink:0` and outside this box, so it never scrolls under. */
+.sb-scroll {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    padding: 8px 6px 10px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.sb-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.sb-nav { display: flex; flex-direction: column; gap: 2px; }
+
+.sb-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 8px; border-radius: 10px; cursor: pointer;
+    text-decoration: none; position: relative;
+    border: none; background: none; width: 100%;
+    color: var(--sb-fg);
+    transition: background .15s ease, color .15s ease,
+                padding .2s cubic-bezier(.4, 0, .2, 1);
+}
+.sb-item:hover { background: var(--sb-hover); text-decoration: none; }
+/* The active tab: the red gradient icon is the primary indicator, and a slim
+   red bar on the rail edge echoes it so the active item reads at a glance —
+   including in the collapsed rail, where the icon is all that remains. */
+.sb-item.on { background: var(--sb-hover); color: var(--sb-fg); border-radius: 10px; }
+.sb-item.on::before {
+    content: ""; position: absolute;
+    left: -6px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px;
+    background: linear-gradient(180deg, #d63232, #b91c1c);
+}
+:root[data-sb-collapsed="1"] .sb-item { padding: 6px 6px; justify-content: center; }
+
+.sb-icon {
+    width: 36px; height: 36px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px;
+    color: var(--sb-fg); background: var(--sb-icon-bg);
+    border: 1px solid var(--sb-icon-border);
+    box-shadow: var(--sb-icon-shadow);
+    transition: background .15s ease, color .15s ease, box-shadow .2s ease, transform .2s ease;
+}
+.sb-icon svg { width: 20px; height: 20px; display: block; flex-shrink: 0; }
+.sb-item:hover .sb-icon { background: var(--sb-hover); box-shadow: var(--sb-icon-hover-shadow); }
+.sb-item.on .sb-icon {
+    background: linear-gradient(145deg, #d63232, #b91c1c); color: #fff;
+    border-color: rgba(0, 0, 0, .3);
+    box-shadow: inset 2px 2px 4px rgba(0, 0, 0, .3), inset -2px -2px 4px rgba(255, 255, 255, .1);
+    transform: scale(.95);
+}
+
+.sb-label {
+    flex: 1; min-width: 0;
+    font-size: 13px; font-weight: 500; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    opacity: 1; transition: opacity .12s ease;
+}
+:root[data-sb-collapsed="1"] .sb-label { display: none; }
+.sb-item.on .sb-label { font-weight: 600; }
+
+/* A count riding on a tab — the open incidents, mostly. The ring keeps it
+   legible when it sits on an active (tinted) row. */
+.sb-badge {
+    flex-shrink: 0; min-width: 18px; text-align: center;
+    font-size: 10px; font-weight: 700; line-height: 17px;
+    border-radius: 9px; padding: 0 5px;
+    background: #dc2626; color: #fff;
+    box-shadow: 0 0 0 2px var(--panel);
+}
+:root[data-sb-collapsed="1"] .sb-badge { display: none; }
+
+.sb-footer {
+    flex-shrink: 0; padding: 6px 6px 10px;
+    display: flex; flex-direction: column; gap: 2px;
+    border-top: 1px solid var(--sb-footer-border);
+}
+.sb-footer .sb-item { color: var(--sb-fg-muted); }
+.sb-footer .sb-item:hover { color: var(--sb-fg); }
+.sb-footer .sb-icon { width: 32px; height: 32px; border-radius: 10px; }
+.sb-footer .sb-icon svg { width: 18px; height: 18px; }
+.sb-item.logout:hover { background: rgba(220, 38, 38, .9); color: #fff; }
+.sb-item.logout:hover .sb-icon { color: #fff; }
+.sb-version {
+    text-align: center; font-size: 10px; color: var(--sb-fg-muted);
+    padding: 4px 0; font-family: ui-monospace, monospace;
+}
+:root[data-sb-collapsed="1"] .sb-version { font-size: 0; }
+
+/* The tooltip lives on <body>, not inside the rail — inside, the rail's own
+   overflow clipped it away, which is why the collapsed rail used to show
+   nothing on hover. */
+#sb-tip {
+    position: fixed; z-index: 2000; left: 0; top: 0;
+    padding: 5px 10px; border-radius: 6px;
+    background: #dc2626; color: #fff;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+    pointer-events: none; opacity: 0; transform: translateY(-50%);
+    transition: opacity .12s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+}
+
+/* ── The page, moved out from under the chrome ────────────────────────────── */
+body.has-chrome { padding-top: var(--tb-h); }
+body.has-chrome .shell {
+    padding-left: var(--sb-w);
+    transition: padding-left .2s cubic-bezier(.4, 0, .2, 1);
+    display: flex; flex-direction: column; flex: 1; min-height: 0;
+}
+:root[data-sb-collapsed="1"] body.has-chrome .shell { padding-left: var(--sb-w-collapsed); }
+
+/* ── Phones: the rail becomes a drawer ────────────────────────────────────── */
+/*
+ * Below 860px a 188px rail eats a quarter of the screen, so it slides off and
+ * comes back over the page when the toggle is pressed. The collapsed-to-60px
+ * behaviour is a desktop idea and does not apply here — a half-width rail is
+ * worse than either full or gone.
+ */
+@media (max-width: 860px) {
+    .sb {
+        transform: translateX(-100%);
+        transition: transform .2s cubic-bezier(.4, 0, .2, 1);
+        box-shadow: 6px 0 24px rgba(0, 0, 0, .18);
+    }
+    .sb, :root[data-sb-collapsed="1"] .sb { width: var(--sb-w); }
+    body.sb-open .sb { transform: none; }
+    body.has-chrome .shell,
+    :root[data-sb-collapsed="1"] body.has-chrome .shell { padding-left: 0; }
+
+    .sb-scrim {
+        position: fixed; inset: var(--tb-h) 0 0 0; z-index: 890;
+        background: rgba(0, 0, 0, .4);
+        opacity: 0; pointer-events: none; transition: opacity .2s ease;
+    }
+    body.sb-open .sb-scrim { opacity: 1; pointer-events: auto; }
+
+    :root[data-sb-collapsed="1"] .sb-label { display: inline; }
+    :root[data-sb-collapsed="1"] .sb-item { padding: 6px 8px; justify-content: flex-start; }
+
+    /* The title bar gives up what it can spare: the language names shrink to
+       their flags, the search box takes what is left. */
+    .tb-lang button span:not(.flag) { display: none; }
+    .tb-lang button { padding: 0 5px; }
+    .tb-search { width: auto; max-width: none; }
+    .tb-username { display: none; }
+}
+@media (max-width: 560px) {
+    .tb-role, .tb-name { display: none; }
+    .tb-search { flex: 1; }
+}
+
+/* ── Sub-rail ─────────────────────────────────────────────────────────────
+   The second column: the sections of whichever module you are in. It sits
+   beside the icon rail and scrolls with the page rather than the rail,
+   because a module with four sections should not introduce a second
+   scrollbar. */
+.sb2 {
+    position: fixed; top: var(--tb-h); bottom: 0;
+    left: var(--sb-w); width: var(--sb2-w);
+    background: var(--panel); border-right: 1px solid var(--line);
+    overflow-y: auto; z-index: 40;
+    transition: left .18s ease;
+}
+:root { --sb2-w: 172px; }
+[data-sb-collapsed="1"] .sb2 { left: var(--sb-w-collapsed); }
+
+.sb2-head {
+    padding: 12px 14px 6px; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .07em; color: var(--dim);
+}
+.sb2-nav { display: flex; flex-direction: column; padding: 0 8px 12px; }
+.sb2-item {
+    display: block; padding: 7px 10px; border-radius: 6px;
+    color: var(--dim); font-size: 13px; text-decoration: none;
+}
+.sb2-item:hover { background: var(--panel-2); color: var(--ink); text-decoration: none; }
+.sb2-item.on { background: var(--panel-2); color: var(--ink); font-weight: 600; }
+
+/* The shell is offset with `padding-left`, not margin — matching what the
+   chrome already does, so the two do not fight over the same space. */
+body.has-chrome .shell.has-sb2 { padding-left: calc(var(--sb-w) + var(--sb2-w)); }
+:root[data-sb-collapsed="1"] body.has-chrome .shell.has-sb2 {
+    padding-left: calc(var(--sb-w-collapsed) + var(--sb2-w));
+}
+
+/* On a phone the sub-rail becomes a scrolling strip of tabs above the page —
+   two fixed columns would leave nothing for the content. */
+@media (max-width: 860px) {
+    .sb2 {
+        position: static; margin-top: 0; width: auto; left: auto; top: auto; bottom: auto;
+        border-right: 0; border-bottom: 1px solid var(--line);
+        overflow-x: auto; overflow-y: hidden;
+    }
+    .sb2-head { display: none; }
+    .sb2-nav { flex-direction: row; gap: 4px; padding: 8px 12px; }
+    .sb2-item { white-space: nowrap; }
+    body.has-chrome .shell.has-sb2 { padding-left: 0; }
+}
