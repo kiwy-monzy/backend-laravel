@@ -1,0 +1,18 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # If request already points to public/, don't rewrite again
+    RewriteCond %{REQUEST_URI} !^/public/
+
+    # Route everything through public/ when document root is project root
+    # (cPanel default is /home/fgeortz/public_html not /.../public)
+    RewriteRule ^(.*)$ public/$1 [L]
+
+    # Also handle direct /public prefix cleanup if someone visits /public/...
+    # This is handled inside public/.htaccess, but keep root clean
+</IfModule>
+
+# Deny access to sensitive files when docroot is project root
+<FilesMatch "^\.env|\.git|composer\.(json|lock)$">
+    Require all denied
+</FilesMatch>
