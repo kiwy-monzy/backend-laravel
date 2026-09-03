@@ -50,9 +50,6 @@ return [
             // progress, so a long posting run does not block every page.
             'journal_mode' => env('DB_JOURNAL_MODE', 'WAL'),
             'synchronous' => env('DB_SYNCHRONOUS', 'NORMAL'),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
             'transaction_mode' => 'DEFERRED',
         ],
 
