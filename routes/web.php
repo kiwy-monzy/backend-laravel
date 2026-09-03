@@ -13,6 +13,7 @@ use App\Http\Controllers\Web\SystemController;
 use App\Http\Controllers\Web\UploadController;
 use App\Http\Controllers\Web\UserController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 /*
 |---------------------------------------------------------------------------
@@ -142,6 +143,62 @@ if (class_exists(\Modules\Contact\Http\Controllers\ContactController::class)) {
     Route::get('/reset/{token}', [\Modules\Contact\Http\Controllers\ContactController::class, 'showReset'])->name('contact.reset.show');
     Route::post('/reset/{token}', [\Modules\Contact\Http\Controllers\ContactController::class, 'updateReset'])->name('contact.reset.update');
 }
+
+// Legacy uploads fallback – old content used `/uploads/<file>` while current
+// storage lives at `storage/app/public/uploads/…` served as `/storage/...`.
+// On cPanel the `public/storage` symlink is often missing, and many seeded
+// rows still point at the legacy prefix, so serve from disk here rather than
+// 404. Search by basename across organization folders and `_shared`.
+Route::get('/uploads/{path}', function (string $path) {
+    $path = ltrim($path, '/');
+    $disk = Storage::disk('public');
+
+    // Direct match first (e.g. /uploads/1767...jpeg when file sits flat)
+    if ($disk->exists('uploads/'.$path)) {
+        return $disk->response('uploads/'.$path);
+    }
+    // Already org-scoped? Try as-is
+    if ($disk->exists($path)) {
+        return $disk->response($path);
+    }
+
+    $basename = basename($path);
+
+    // Search across existing uploads
+    foreach ($disk->allFiles('uploads') as $file) {
+        if (basename($file) === $basename) {
+            return $disk->response($file);
+        }
+    }
+
+    // Last resort: check bundled fixture assets
+    $bundled = database_path('seeders/fixtures/assets/website/'.$basename);
+    if (is_file($bundled)) {
+        return response()->file($bundled);
+    }
+
+    abort(404);
+})->where('path', '.*');
+
+// Also serve /storage/* via Laravel when the symlink is missing (common on cPanel)
+Route::get('/storage/{path}', function (string $path) {
+    $disk = Storage::disk('public');
+    if ($disk->exists($path)) {
+        return $disk->response($path);
+    }
+    // Fall back to basename search across org folders
+    $basename = basename($path);
+    foreach ($disk->allFiles('uploads') as $file) {
+        if (basename($file) === $basename) {
+            return $disk->response($file);
+        }
+    }
+    $bundled = database_path('seeders/fixtures/assets/website/'.$basename);
+    if (is_file($bundled)) {
+        return response()->file($bundled);
+    }
+    abort(404);
+})->where('path', '.*');
 
 // The host's own site, unprefixed. This is the canonical form: on fge.or.tz the
 // pages are /about and /donate, and on localhost they are the same paths, since

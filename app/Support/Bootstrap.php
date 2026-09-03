@@ -6,13 +6,14 @@ use App\Models\ContentSection;
 use App\Models\GalleryImage;
 use App\Models\Organization;
 use App\Models\OrganizationMember;
-use App\Models\OrganizationModule;
 use App\Models\StorageCollection;
 use App\Models\User;
 use App\Models\Website;
+use App\Services\MediaLibrary;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -77,6 +78,14 @@ final class Bootstrap
                 && (! Schema::hasTable('org_departments') || \Modules\Departments\Models\Department::exists());
 
             if ($complete) {
+                // Even a "complete" install may still carry legacy `/uploads/` URLs
+                // from fixtures that pre-date the per-organization storage layout.
+                // That's a cheap heal so seeded images stop 404'ing.
+                try {
+                    self::healLegacyUrlsIfNeeded();
+                } catch (\Throwable $e) {
+                    // Heal is best-effort on boot; `images:heal` covers the rest
+                }
                 self::$checked = true;
 
                 return;
@@ -139,8 +148,10 @@ final class Bootstrap
         self::grantAllModules($knowlia, $admin);
 
         $website = self::website($fge, $owner);
+        self::ensureWebsiteAssets($fge->id);
         self::content($website, $fge);
         self::modules($website, $fge);
+        self::healExistingContent($website, $fge);
     }
 
     /**
@@ -296,9 +307,35 @@ final class Bootstrap
             ->first();
 
         foreach ($images as $image) {
-            $url = $image['url'] ?? '';
+            $rawUrl = $image['url'] ?? '';
 
-            if ($url === '' || Str::startsWith($url, 'data:')) {
+            if ($rawUrl === '' || Str::startsWith($rawUrl, 'data:')) {
+                continue;
+            }
+
+            $url = self::storageUrlForLegacy($rawUrl, $organization->id);
+
+            // Ensure the file actually exists for the new URL (adopt if needed)
+            $rel = ltrim(Str::after($url, '/storage/'), '/');
+            $size = 0;
+            try {
+                if (Storage::disk('public')->exists($rel)) {
+                    $size = Storage::disk('public')->size($rel);
+                }
+            } catch (\Throwable $e) {}
+
+            $existing = \App\Models\Upload::where('url', $rawUrl)->first() ?: \App\Models\Upload::where('url', $url)->first();
+            if ($existing) {
+                // Heal legacy URL pointing at old path
+                if ($existing->url !== $url) {
+                    $existing->forceFill([
+                        'url' => $url,
+                        'path' => $rel,
+                        'organization_id' => $organization->id,
+                        'collection_id' => $collection?->id,
+                        'size' => $size ?: $existing->size,
+                    ])->save();
+                }
                 continue;
             }
 
@@ -311,8 +348,8 @@ final class Bootstrap
                     'collection_id' => $collection?->id,
                     'filename' => basename(parse_url($url, PHP_URL_PATH) ?: $url),
                     'mime' => self::mimeFor($url),
-                    'size' => 0,
-                    'path' => ltrim(Str::after($url, '/storage/'), '/'),
+                    'size' => $size,
+                    'path' => $rel,
                 ],
             );
         }
@@ -428,6 +465,218 @@ final class Bootstrap
     }
 
     /**
+     * Ensure every image referenced by the fixture actually exists on disk for this organization.
+     *
+     * The bundled assets live in `database/seeders/fixtures/assets/website/` (tracked in git) and
+     * legacy local copies may sit in `storage/app/public/uploads/_shared/website/`. Either is adopted
+     * into `uploads/{organizationId}/website/` so the seeded URLs point at a file that the
+     * `public/storage` symlink can serve.
+     */
+    private static function ensureWebsiteAssets(string $organizationId): void
+    {
+        $collection = 'website';
+        $disk = Storage::disk('public');
+
+        // Gather basenames fixture wants
+        $seed = self::fixture();
+        $wanted = [];
+
+        $collect = function (mixed $v) use (&$wanted, &$collect) {
+            if (is_string($v) && (str_starts_with($v, '/uploads/') || str_starts_with($v, '/storage/'))) {
+                $wanted[basename(parse_url($v, PHP_URL_PATH) ?: $v)] = $v;
+            } elseif (is_array($v)) {
+                foreach ($v as $item) $collect($item);
+            }
+        };
+        $collect($seed);
+
+        foreach (array_keys($wanted) as $basename) {
+            if ($basename === '' || $basename === 'uploads' || $basename === 'storage') continue;
+
+            $target = 'uploads/'.$organizationId.'/'.$collection.'/'.$basename;
+            if ($disk->exists($target)) continue;
+
+            $source = self::findSourceFile($basename, $collection);
+            if ($source && is_file($source)) {
+                try {
+                    $media = app(MediaLibrary::class);
+                    $media->adopt($source, $organizationId, $collection);
+                } catch (\Throwable $e) {
+                    // Fallback to direct copy if MediaLibrary fails
+                    $disk->put($target, file_get_contents($source));
+                }
+            }
+        }
+    }
+
+    private static function findSourceFile(string $basename, string $collection = 'website'): ?string
+    {
+        $candidates = [
+            database_path('seeders/fixtures/assets/'.$collection.'/'.$basename),
+            storage_path('app/public/uploads/_shared/'.$collection.'/'.$basename),
+            storage_path('app/public/uploads/'.$collection.'/'.$basename),
+        ];
+
+        foreach ($candidates as $c) {
+            if (is_file($c)) return $c;
+        }
+
+        // Search recursively under storage/app/public/uploads and fixtures/assets
+        foreach ([storage_path('app/public/uploads'), database_path('seeders/fixtures/assets')] as $root) {
+            if (! is_dir($root)) continue;
+            $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS));
+            foreach ($it as $file) {
+                if ($file->isFile() && $file->getBasename() === $basename) {
+                    return $file->getPathname();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static function storageUrlForLegacy(string $url, string $organizationId, string $collection = 'website'): string
+    {
+        if ($url === '' || str_starts_with($url, 'data:')) return $url;
+        if (! str_starts_with($url, '/uploads/') && ! str_starts_with($url, '/storage/')) return $url;
+
+        $basename = basename(parse_url($url, PHP_URL_PATH) ?: $url);
+        if ($basename === '' || $basename === 'uploads' || $basename === 'storage') return $url;
+
+        // If already /storage/... and file exists at that exact location, keep it
+        if (str_starts_with($url, '/storage/')) {
+            $rel = ltrim(Str::after($url, '/storage/'), '/');
+            if (Storage::disk('public')->exists($rel)) return $url;
+        }
+
+        // Preferred target for this organization
+        $target = 'uploads/'.$organizationId.'/'.$collection.'/'.$basename;
+        if (Storage::disk('public')->exists($target)) {
+            return '/storage/'.$target;
+        }
+
+        // Try to materialise from source
+        $source = self::findSourceFile($basename, $collection);
+        if ($source && is_file($source)) {
+            try {
+                $media = app(MediaLibrary::class);
+                $adopted = $media->adopt($source, $organizationId, $collection);
+                if ($adopted) return $adopted;
+            } catch (\Throwable $e) {}
+        }
+
+        // Fallback to _shared URL if that file exists (readable even without per-org copy)
+        $shared = 'uploads/_shared/'.$collection.'/'.$basename;
+        if (Storage::disk('public')->exists($shared)) {
+            return '/storage/'.$shared;
+        }
+
+        // Last resort: if shared file exists on the original local disk (not yet copied to public disk's _shared), adopt it
+        $sharedSource = storage_path('app/public/uploads/_shared/'.$collection.'/'.$basename);
+        if (is_file($sharedSource)) {
+            Storage::disk('public')->put($shared, file_get_contents($sharedSource));
+            return '/storage/'.$shared;
+        }
+
+        // If bundled asset exists, copy to shared so fallback works
+        $bundled = database_path('seeders/fixtures/assets/'.$collection.'/'.$basename);
+        if (is_file($bundled)) {
+            Storage::disk('public')->put($shared, file_get_contents($bundled));
+            // Also adopt to org
+            try {
+                $media = app(MediaLibrary::class);
+                $adopted = $media->adopt($bundled, $organizationId, $collection);
+                if ($adopted) return $adopted;
+            } catch (\Throwable $e) {}
+            return '/storage/'.$shared;
+        }
+
+        // Give up – return storage path for org (will be healed once file is deployed)
+        return '/storage/'.$target;
+    }
+
+    private static function normalizeUrls(mixed $value, string $organizationId): mixed
+    {
+        if (is_string($value) && (str_starts_with($value, '/uploads/') || str_starts_with($value, '/storage/'))) {
+            return self::storageUrlForLegacy($value, $organizationId);
+        }
+        if (is_array($value)) {
+            foreach ($value as $k => $v) $value[$k] = self::normalizeUrls($v, $organizationId);
+            return $value;
+        }
+        return $value;
+    }
+
+    private static function healExistingContent(Website $website, Organization $organization): void
+    {
+        $orgId = $organization->id;
+
+        foreach (ContentSection::where('website_id', $website->id)->get() as $row) {
+            $orig = $row->data;
+            if (! is_array($orig)) continue;
+            $fixed = self::normalizeUrls($orig, $orgId);
+            // Only save if URLs changed or contained legacy prefix
+            if ($fixed !== $orig) {
+                $row->forceFill(['data' => $fixed])->save();
+            } else {
+                // Also heal if data JSON string still contains /uploads/ that didn't get normalized due to not being pure prefix
+                $enc = json_encode($orig);
+                if (str_contains($enc, '/uploads/')) {
+                    $healed = self::normalizeUrls($orig, $orgId);
+                    if ($healed !== $orig) $row->forceFill(['data'=>$healed])->save();
+                }
+            }
+        }
+
+        foreach (GalleryImage::where('website_id', $website->id)->get() as $img) {
+            $new = self::storageUrlForLegacy((string) $img->url, $orgId);
+            if ($new !== $img->url) $img->forceFill(['url'=>$new])->save();
+        }
+
+        // Heal direct Upload rows that still point at legacy
+        foreach (\App\Models\Upload::where('organization_id', $orgId)->get() as $up) {
+            $new = self::storageUrlForLegacy((string) $up->url, $orgId);
+            if ($new !== $up->url) {
+                $up->forceFill([
+                    'url' => $new,
+                    'path' => ltrim(Str::after($new, '/storage/'), '/'),
+                ])->save();
+            }
+        }
+
+        // Heal organization general logo
+        if (is_array($organization->general)) {
+            $fixedGeneral = self::normalizeUrls($organization->general, $orgId);
+            if ($fixedGeneral !== $organization->general) {
+                $organization->forceFill(['general'=>$fixedGeneral])->save();
+            }
+        }
+    }
+
+    private static function healLegacyUrlsIfNeeded(): void
+    {
+        if (! Schema::hasTable('content_sections') || ! Schema::hasTable('gallery_images')) {
+            return;
+        }
+
+        $hasLegacy = ContentSection::where('data', 'like', '%/uploads/%')->exists()
+            || GalleryImage::where('url', 'like', '%/uploads/%')->exists()
+            || (Schema::hasTable('uploads') && \App\Models\Upload::where('url', 'like', '%/uploads/%')->exists())
+            || (Schema::hasTable('content_sections') && ContentSection::where('data', 'like', '%"\/uploads\/%')->exists());
+
+        if (! $hasLegacy) {
+            return;
+        }
+
+        $fge = Organization::where('slug', self::TENANT_SLUG)->first();
+        $website = Website::whereKey(Website::FGE_WEBSITE_ID)->first();
+        if (! $fge || ! $website) return;
+
+        self::ensureWebsiteAssets($fge->id);
+        self::healExistingContent($website, $fge);
+    }
+
+    /**
      * The site's starting content, from the fixture.
      *
      * `general` — identity, contact, social links, visibility — is the
@@ -440,8 +689,9 @@ final class Bootstrap
         $seed = self::fixture();
 
         if (isset($seed['general'])) {
+            $normalizedGeneral = self::normalizeUrls($seed['general'], $organization->id);
             $organization->update([
-                'general' => array_replace_recursive($seed['general'], $organization->general ?? []),
+                'general' => array_replace_recursive($normalizedGeneral, $organization->general ?? []),
             ]);
         }
 
@@ -452,9 +702,11 @@ final class Bootstrap
                 continue;
             }
 
+            $normalized = self::normalizeUrls($data, $organization->id);
+
             ContentSection::firstOrCreate(
                 ['website_id' => $website->id, 'section' => $section, 'locale' => $locale],
-                ['data' => $data],
+                ['data' => $normalized],
             );
         }
 
@@ -463,11 +715,13 @@ final class Bootstrap
                 continue;
             }
 
+            $url = self::storageUrlForLegacy($image['url'] ?? '', $organization->id);
+
             GalleryImage::firstOrCreate(
                 ['id' => (string) $image['id']],
                 [
                     'website_id' => $website->id,
-                    'url' => $image['url'] ?? '',
+                    'url' => $url,
                     'caption' => $image['caption'] ?? '',
                     'disabled' => $image['disabled'] ?? false,
                 ],
