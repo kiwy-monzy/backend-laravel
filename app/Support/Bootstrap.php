@@ -689,21 +689,28 @@ final class Bootstrap
         $fixture = self::fixture();
         $fixtureIds = collect($fixture['gallery']['images'] ?? [])->pluck('id')->filter()->values();
         $needsGalleryMerge = false;
+        $needsGalleryPrune = false;
         if ($fixtureIds->isNotEmpty()) {
             try {
                 $websiteId = Website::FGE_WEBSITE_ID;
                 $existingIds = GalleryImage::where('website_id', $websiteId)->pluck('id');
                 $needsGalleryMerge = $fixtureIds->diff($existingIds)->isNotEmpty();
+                $needsGalleryPrune = $existingIds->diff($fixtureIds)->isNotEmpty();
                 if (! $needsGalleryMerge) {
                     // Also check content section JSON has fewer images than fixture
                     $section = ContentSection::where('website_id', $websiteId)->where('section', 'gallery')->first();
                     $sectionCount = is_array($section?->data) ? count($section->data['images'] ?? []) : 0;
                     $needsGalleryMerge = count($fixture['gallery']['images'] ?? []) > $sectionCount;
                 }
+                if (! $needsGalleryPrune) {
+                    $section = ContentSection::where('website_id', $websiteId)->where('section', 'gallery')->first();
+                    $sectionIds = collect($section?->data['images'] ?? [])->pluck('id')->filter()->values();
+                    $needsGalleryPrune = $sectionIds->diff($fixtureIds)->isNotEmpty();
+                }
             } catch (\Throwable $e) {}
         }
 
-        if (! $hasLegacy && ! $needsGalleryMerge) {
+        if (! $hasLegacy && ! $needsGalleryMerge && ! $needsGalleryPrune) {
             return;
         }
 
@@ -713,6 +720,24 @@ final class Bootstrap
 
         self::ensureWebsiteAssets($fge->id);
         self::healExistingContent($website, $fge);
+
+        // Prune gallery rows that are no longer in fixture (user wants only 2 picked images)
+        if ($needsGalleryPrune) {
+            $toDelete = \App\Models\GalleryImage::where('website_id', $website->id)->whereNotIn('id', $fixtureIds)->pluck('id');
+            if ($toDelete->isNotEmpty()) {
+                \App\Models\GalleryImage::where('website_id', $website->id)->whereIn('id', $toDelete)->delete();
+                // Also prune content_section gallery JSON
+                $section = ContentSection::where('website_id', $website->id)->where('section', 'gallery')->first();
+                if ($section && is_array($section->data)) {
+                    $filtered = collect($section->data['images'] ?? [])->filter(fn($img) => $fixtureIds->contains($img['id'] ?? ''))->values()->all();
+                    if (count($filtered) !== count($section->data['images'] ?? [])) {
+                        $data = $section->data;
+                        $data['images'] = $filtered;
+                        $section->forceFill(['data' => $data])->save();
+                    }
+                }
+            }
+        }
 
         // Ensure any new fixture gallery images missing from DB/content are merged
         // and that every gallery image has a corresponding Upload row (for Storage table + size)
