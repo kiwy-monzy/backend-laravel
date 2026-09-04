@@ -279,4 +279,30 @@
         if (timer) clearTimeout(timer);
         timer = setTimeout(load, 220);
     });
+
+    const uploadForm = document.getElementById("picker-upload-form");
+    const uploadInput = document.getElementById("picker-upload-input");
+    const uploadStatus = document.getElementById("picker-upload-status");
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
+
+    uploadForm?.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        if (!uploadInput || !uploadInput.files.length) return;
+        const col = select?.value || "website";
+        const template = picker.dataset.upload || "";
+        const url = template.replace("__COLLECTION__", col);
+        const fd = new FormData();
+        for (const f of uploadInput.files) fd.append("files[]", f);
+        if (uploadStatus) uploadStatus.textContent = "Uploading…";
+        try {
+            const res = await fetch(url, { method: "POST", headers: { "X-CSRF-TOKEN": csrf }, body: fd });
+            if (!res.ok) throw new Error("Upload failed");
+            uploadInput.value = "";
+            if (uploadStatus) uploadStatus.textContent = "Uploaded";
+            load();
+            setTimeout(function () { if (uploadStatus) uploadStatus.textContent = ""; }, 2000);
+        } catch (err) {
+            if (uploadStatus) uploadStatus.textContent = "Upload failed";
+        }
+    });
 })();
