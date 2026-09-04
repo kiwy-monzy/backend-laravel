@@ -1,18 +1,32 @@
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-
-    # If request already points to public/, don't rewrite again
-    RewriteCond %{REQUEST_URI} !^/public/
-
-    # Route everything through public/ when document root is project root
-    # (cPanel default is /home/fgeortz/public_html not /.../public)
-    RewriteRule ^(.*)$ public/$1 [L]
-
-    # Also handle direct /public prefix cleanup if someone visits /public/...
-    # This is handled inside public/.htaccess, but keep root clean
-</IfModule>
-
-# Deny access to sensitive files when docroot is project root
+# Prevent access to .env, .htaccess, .git and composer files
+<FilesMatch "^\.|^composer\.(json|lock)$|\.env$">
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</FilesMatch>
 <FilesMatch "^\.env|\.git|composer\.(json|lock)$">
     Require all denied
 </FilesMatch>
+
+<IfModule mod_alias.c>
+    # Do NOT redirect / to /public — keep URL clean. The rewrite below handles it internally.
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # If the browser explicitly requested /public/... hide it: /public/admin -> /admin
+    RewriteCond %{THE_REQUEST} \s/+public/([^\s?]+) [NC]
+    RewriteRule ^ /%1 [R=301,L,NE]
+
+    # Route everything through public/ when document root is project root
+    # (cPanel default is /home/fgeortz/public_html not /.../public)
+    # Don't rewrite if already pointing at public/
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
