@@ -665,7 +665,24 @@ final class Bootstrap
             || (Schema::hasTable('uploads') && \App\Models\Upload::where('url', 'like', '%/uploads/%')->exists())
             || (Schema::hasTable('content_sections') && ContentSection::where('data', 'like', '%"\/uploads\/%')->exists());
 
-        if (! $hasLegacy) {
+        $fixture = self::fixture();
+        $fixtureIds = collect($fixture['gallery']['images'] ?? [])->pluck('id')->filter()->values();
+        $needsGalleryMerge = false;
+        if ($fixtureIds->isNotEmpty()) {
+            try {
+                $websiteId = Website::FGE_WEBSITE_ID;
+                $existingIds = GalleryImage::where('website_id', $websiteId)->pluck('id');
+                $needsGalleryMerge = $fixtureIds->diff($existingIds)->isNotEmpty();
+                if (! $needsGalleryMerge) {
+                    // Also check content section JSON has fewer images than fixture
+                    $section = ContentSection::where('website_id', $websiteId)->where('section', 'gallery')->first();
+                    $sectionCount = is_array($section?->data) ? count($section->data['images'] ?? []) : 0;
+                    $needsGalleryMerge = count($fixture['gallery']['images'] ?? []) > $sectionCount;
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        if (! $hasLegacy && ! $needsGalleryMerge) {
             return;
         }
 
@@ -675,6 +692,11 @@ final class Bootstrap
 
         self::ensureWebsiteAssets($fge->id);
         self::healExistingContent($website, $fge);
+
+        // Ensure any new fixture gallery images missing from DB/content are merged
+        if ($needsGalleryMerge) {
+            self::content($website, $fge);
+        }
     }
 
     /**
@@ -705,10 +727,30 @@ final class Bootstrap
 
             $normalized = self::normalizeUrls($data, $organization->id);
 
-            ContentSection::firstOrCreate(
+            $row = ContentSection::firstOrCreate(
                 ['website_id' => $website->id, 'section' => $section, 'locale' => $locale],
                 ['data' => $normalized],
             );
+
+            // If fixture grew (e.g. new gallery images), merge them into an
+            // existing section that was already seeded with fewer items.
+            if (! $row->wasRecentlyCreated && is_array($row->data) && is_array($normalized)) {
+                $merged = $row->data;
+                // Gallery images: merge by id
+                if ($section === 'gallery' && isset($normalized['images']) && is_array($normalized['images'])) {
+                    $existingIds = collect($merged['images'] ?? [])->pluck('id')->flip();
+                    foreach ($normalized['images'] as $img) {
+                        if (! isset($existingIds[$img['id'] ?? ''])) {
+                            $merged['images'][] = $img;
+                        }
+                    }
+                    // Also normalize any legacy URLs that may have been stored before
+                    $merged = self::normalizeUrls($merged, $organization->id);
+                    if ($merged !== $row->data) {
+                        $row->forceFill(['data' => $merged])->save();
+                    }
+                }
+            }
         }
 
         foreach ($seed['gallery']['images'] ?? [] as $image) {
