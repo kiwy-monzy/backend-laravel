@@ -28,6 +28,7 @@ class SettingsController extends AdminController
         $user = $this->me();
 
         $data = $request->validate([
+            'username' => ['nullable', 'string', 'max:60', 'unique:users,username,'.$user->id.',id'],
             'email' => ['nullable', 'email'],
             'font' => ['nullable', 'in:small,normal,large'],
             'current_password' => ['nullable', 'string'],
@@ -43,6 +44,9 @@ class SettingsController extends AdminController
             $user->password_hash = Hash::make($data['new_password']);
         }
 
+        if (array_key_exists('username', $data) && filled($data['username'])) {
+            $user->username = $data['username'];
+        }
         if (array_key_exists('email', $data) && $data['email'] !== null) {
             $user->email = $data['email'];
         }

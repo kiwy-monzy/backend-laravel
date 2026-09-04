@@ -40,6 +40,11 @@
         @csrf
 
         <label>
+            <span>{{ __('Username') }}</span>
+            <input type="text" name="username" value="{{ old('username', $user->username) }}" maxlength="60">
+        </label>
+
+        <label>
             <span>{{ __('Email') }}</span>
             <input type="email" name="email" value="{{ old('email', $user->email) }}">
         </label>
