@@ -41,6 +41,8 @@ final class Bootstrap
 {
     public const ADMIN_USERNAME = 'admin';
 
+    public const SYSTEM_USERNAME = 'fge_system';
+
     public const OWNER_USERNAME = 'fge_owner';
 
     public const OPERATOR_SLUG = 'knowlia';
@@ -72,7 +74,7 @@ final class Bootstrap
             // before the module seeding existed still has both users and both
             // organizations, and checking only those would mean it never
             // catches up.
-            $complete = User::whereIn('username', [self::ADMIN_USERNAME, self::OWNER_USERNAME])->count() === 2
+            $complete = User::whereIn('username', [self::ADMIN_USERNAME, self::SYSTEM_USERNAME, self::OWNER_USERNAME])->count() === 3
                 && Organization::whereIn('slug', [self::OPERATOR_SLUG, self::TENANT_SLUG])->count() === 2
                 && Website::whereKey(Website::FGE_WEBSITE_ID)->exists()
                 && ContentSection::where('website_id', Website::FGE_WEBSITE_ID)->exists()
@@ -113,6 +115,13 @@ final class Bootstrap
             $password,
         );
 
+        $system = self::user(
+            self::SYSTEM_USERNAME,
+            (string) env('BOOTSTRAP_SYSTEM_EMAIL', 'system@fge.or.tz'),
+            'system_admin',
+            $password,
+        );
+
         $owner = self::user(
             self::OWNER_USERNAME,
             (string) env('BOOTSTRAP_OWNER_EMAIL', 'owner@fge.or.tz'),
@@ -141,6 +150,7 @@ final class Bootstrap
         ]);
 
         self::seat($admin, $knowlia);
+        self::seat($system, $knowlia);
         self::seat($owner, $fge);
 
         // Knowlia gets every module: it is the reference tenant and the one the
@@ -634,14 +644,25 @@ final class Bootstrap
             if ($new !== $img->url) $img->forceFill(['url'=>$new])->save();
         }
 
-        // Heal direct Upload rows that still point at legacy
+        // Heal direct Upload rows that still point at legacy + fix 0/1KB sizes
         foreach (\App\Models\Upload::where('organization_id', $orgId)->get() as $up) {
             $new = self::storageUrlForLegacy((string) $up->url, $orgId);
-            if ($new !== $up->url) {
+            $rel = ltrim(Str::after($new, '/storage/'), '/');
+            $size = $up->size;
+            try {
+                if (Storage::disk('public')->exists($rel)) {
+                    $diskSize = Storage::disk('public')->size($rel);
+                    if ($diskSize > 0 && $size !== $diskSize) $size = $diskSize;
+                }
+            } catch (\Throwable $e) {}
+            if ($new !== $up->url || $size !== $up->size) {
                 $up->forceFill([
                     'url' => $new,
-                    'path' => ltrim(Str::after($new, '/storage/'), '/'),
+                    'path' => $rel,
+                    'size' => $size,
                 ])->save();
+            } elseif ($size !== $up->size) {
+                $up->forceFill(['size' => $size])->save();
             }
         }
 
@@ -694,8 +715,17 @@ final class Bootstrap
         self::healExistingContent($website, $fge);
 
         // Ensure any new fixture gallery images missing from DB/content are merged
+        // and that every gallery image has a corresponding Upload row (for Storage table + size)
         if ($needsGalleryMerge) {
             self::content($website, $fge);
+            $fixtureForUploads = self::fixture();
+            self::seedUploads($website, $fge, $fixtureForUploads['gallery']['images'] ?? []);
+        } else {
+            // Even without new fixture images, ensure existing gallery images have uploads (fixes 1KB legacy)
+            $existingGallery = \App\Models\GalleryImage::where('website_id', $website->id)->get()->map(fn($g) => ['url' => $g->url])->all();
+            if ($existingGallery !== []) {
+                self::seedUploads($website, $fge, $existingGallery);
+            }
         }
     }
 

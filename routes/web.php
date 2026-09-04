@@ -64,6 +64,9 @@ Route::prefix('admin')->group(function () {
             Route::get('/system/organizations/{organization}', [SystemController::class, 'organization'])->name('system.organization');
             Route::put('/system/organizations/{organization}', [SystemController::class, 'updateOrganization'])->name('system.organization.update');
             Route::put('/system/organizations/{organization}/modules', [SystemController::class, 'updateModules'])->name('system.organization.modules');
+            Route::put('/system/organizations/{organization}/presentation', [SystemController::class, 'updatePresentation'])->name('system.organization.presentation');
+            Route::get('/system/organizations/{organization}/websites/create', [SystemController::class, 'createWebsite'])->name('system.organization.website.create');
+            Route::post('/system/organizations/{organization}/websites', [SystemController::class, 'storeWebsite'])->name('system.organization.website.store');
 
             // The organization and the things modules gate on. Core rather
             // than a module: a module that could revoke its own gate would

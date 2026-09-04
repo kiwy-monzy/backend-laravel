@@ -100,66 +100,77 @@
             </div>
         </fieldset>
 
-        <h2>{{ __('Template and theme') }}</h2>
-        <p class="dim small">
-            {{ __('The look every website this organization owns renders in. Preview first — switching a live site to see what a template looks like is not a thing anyone should have to do.') }}
-        </p>
-        @php $currentTemplate = old('template', $organization->template ?? 'template1'); @endphp
-        @foreach (\App\Support\Templates::byCollection() as $collection => $group)
-            <h3 class="dim small" style="text-transform:uppercase;letter-spacing:.06em">
-                {{ \App\Support\Templates::COLLECTIONS[$collection] }}
-            </h3>
-            <div class="template-picker" style="margin-bottom:16px">
-                @foreach ($group as $key => $t)
+        @if (auth()->user()?->isSystemAdmin())
+            <h2>{{ __('Template and theme') }}</h2>
+            <p class="dim small">
+                {{ __('The look every website this organization owns renders in. Preview first — switching a live site to see what a template looks like is not a thing anyone should have to do.') }}
+            </p>
+            @php $currentTemplate = old('template', $organization->template ?? 'template1'); @endphp
+            @foreach (\App\Support\Templates::byCollection() as $collection => $group)
+                <h3 class="dim small" style="text-transform:uppercase;letter-spacing:.06em">
+                    {{ \App\Support\Templates::COLLECTIONS[$collection] }}
+                </h3>
+                <div class="template-picker" style="margin-bottom:16px">
+                    @foreach ($group as $key => $t)
+                        <label>
+                            <input type="radio" name="template" value="{{ $key }}"
+                                   @checked($currentTemplate === $key) @disabled(! $canManage)>
+                            <strong>{{ $t['label'] }}</strong>
+                            <div class="desc">{{ $t['description'] }}</div>
+                            <a class="btn small ghost" style="margin-top:8px"
+                               href="{{ route('templates.preview', $key) }}" target="_blank" rel="noopener">
+                                {{ __('Preview') }}
+                            </a>
+                        </label>
+                    @endforeach
+                </div>
+            @endforeach
+
+            <div class="template-picker">
+                @foreach (\App\Support\ThemeFactory::PRESETS as $key => $t)
                     <label>
-                        <input type="radio" name="template" value="{{ $key }}"
-                               @checked($currentTemplate === $key) @disabled(! $canManage)>
+                        <input type="radio" name="theme" value="{{ $key }}"
+                               @checked(old('theme', $organization->theme ?? 'fge') === $key) @disabled(! $canManage)>
                         <strong>{{ $t['label'] }}</strong>
-                        <div class="desc">{{ $t['description'] }}</div>
+                        <div class="swatches">
+                            @foreach ($t['colors'] as $c)
+                                <span class="swatch" style="background:{{ $c }}"></span>
+                            @endforeach
+                        </div>
                         <a class="btn small ghost" style="margin-top:8px"
-                           href="{{ route('templates.preview', $key) }}" target="_blank" rel="noopener">
+                           href="{{ route('templates.preview', $currentTemplate) }}?theme={{ $key }}"
+                           target="_blank" rel="noopener">
                             {{ __('Preview') }}
                         </a>
                     </label>
                 @endforeach
             </div>
-        @endforeach
 
-        <div class="template-picker">
-            @foreach (\App\Support\ThemeFactory::PRESETS as $key => $t)
-                <label>
-                    <input type="radio" name="theme" value="{{ $key }}"
-                           @checked(old('theme', $organization->theme ?? 'fge') === $key) @disabled(! $canManage)>
-                    <strong>{{ $t['label'] }}</strong>
-                    <div class="swatches">
-                        @foreach ($t['colors'] as $c)
-                            <span class="swatch" style="background:{{ $c }}"></span>
-                        @endforeach
-                    </div>
-                    <a class="btn small ghost" style="margin-top:8px"
-                       href="{{ route('templates.preview', $currentTemplate) }}?theme={{ $key }}"
-                       target="_blank" rel="noopener">
-                        {{ __('Preview') }}
-                    </a>
-                </label>
-            @endforeach
-        </div>
-
-        <h3>{{ __('Colour overrides') }}</h3>
-        <p class="dim small">
-            {{ __('Leave blank to use the palette. Overrides survive a palette change, so you can try presets without losing a hand-picked brand colour.') }}
-        </p>
-        <div class="row">
-            @foreach (['primary' => __('Primary'), 'secondary' => __('Secondary'), 'tertiary' => __('Tertiary')] as $key => $label)
-                <label>
-                    <span>{{ $label }}</span>
-                    <input type="text" name="override_{{ $key }}" placeholder="#10b981"
-                           pattern="#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})"
-                           value="{{ old('override_' . $key, $organization->theme_overrides[$key] ?? '') }}"
-                           @disabled(! $canManage)>
-                </label>
-            @endforeach
-        </div>
+            <h3>{{ __('Colour overrides') }}</h3>
+            <p class="dim small">
+                {{ __('Leave blank to use the palette. Overrides survive a palette change, so you can try presets without losing a hand-picked brand colour.') }}
+            </p>
+            <div class="row">
+                @foreach (['primary' => __('Primary'), 'secondary' => __('Secondary'), 'tertiary' => __('Tertiary')] as $key => $label)
+                    <label>
+                        <span>{{ $label }}</span>
+                        <input type="text" name="override_{{ $key }}" placeholder="#10b981"
+                               pattern="#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})"
+                               value="{{ old('override_' . $key, $organization->theme_overrides[$key] ?? '') }}"
+                               @disabled(! $canManage)>
+                    </label>
+                @endforeach
+            </div>
+        @else
+            <div class="card dim" style="border:1px dashed #d1d5db">
+                <strong>{{ __('Template and theme') }}</strong>
+                <p class="dim small" style="margin:4px 0 0">
+                    {{ __('Only a system admin can change the template and theme. Ask an admin on :route.', ['route' => route('system.organization', $organization->id)]) }}
+                    <br>
+                    {{ __('Current: :template — :theme', ['template' => \App\Support\Templates::ALL[$organization->templateKey()]['label'] ?? $organization->templateKey(), 'theme' => \App\Support\ThemeFactory::PRESETS[$organization->effectiveTheme()]['label'] ?? $organization->effectiveTheme()]) }}
+                </p>
+            </div>
+        @endif
 
         @if ($canManage)
             <button class="btn" type="submit">{{ __('Save organization') }}</button>

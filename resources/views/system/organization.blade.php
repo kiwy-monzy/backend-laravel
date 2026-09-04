@@ -71,6 +71,73 @@
         <button class="btn" type="submit">{{ __('Save organization') }}</button>
     </form>
 
+    <form method="POST" action="{{ route('system.organization.presentation', $organization) }}" class="card">
+        @csrf
+        @method('PUT')
+        <h2 style="margin-top:0">{{ __('Appearance — template and theme') }}</h2>
+        <p class="dim small">{{ __('Only system admins control the look. This is where the template and theme for every website in this organization are set.') }}</p>
+
+        @php $currentTemplate = old('template', $organization->template ?? 'template0'); @endphp
+        @foreach (\App\Support\Templates::byCollection() as $collection => $group)
+            <h3 class="dim small" style="text-transform:uppercase;letter-spacing:.06em">{{ \App\Support\Templates::COLLECTIONS[$collection] }}</h3>
+            <div class="template-picker" style="margin-bottom:16px">
+                @foreach ($group as $key => $t)
+                    <label>
+                        <input type="radio" name="template" value="{{ $key }}" @checked($currentTemplate === $key)>
+                        <strong>{{ $t['label'] }}</strong>
+                        <div class="desc">{{ $t['description'] }}</div>
+                    </label>
+                @endforeach
+            </div>
+        @endforeach
+
+        <div class="template-picker">
+            @foreach (\App\Support\ThemeFactory::PRESETS as $key => $t)
+                <label>
+                    <input type="radio" name="theme" value="{{ $key }}" @checked(old('theme', $organization->theme ?? 'fge') === $key)>
+                    <strong>{{ $t['label'] }}</strong>
+                    <div class="swatches">
+                        @foreach ($t['colors'] as $c)
+                            <span class="swatch" style="background:{{ $c }}"></span>
+                        @endforeach
+                    </div>
+                </label>
+            @endforeach
+        </div>
+
+        <h3>{{ __('Colour overrides') }}</h3>
+        <div class="row">
+            @foreach (['primary' => __('Primary'), 'secondary' => __('Secondary'), 'tertiary' => __('Tertiary')] as $key => $label)
+                <label>
+                    <span>{{ $label }}</span>
+                    <input type="text" name="override_{{ $key }}" placeholder="#10b981" pattern="#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})" value="{{ old('override_'.$key, $organization->theme_overrides[$key] ?? '') }}">
+                </label>
+            @endforeach
+        </div>
+
+        <button class="btn" type="submit">{{ __('Save appearance') }}</button>
+    </form>
+
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <h2 style="margin:0">{{ __('Websites in this organization') }}</h2>
+            <a class="btn small" href="{{ route('system.organization.website.create', $organization) }}">{{ __('Add website') }}</a>
+        </div>
+        <table style="margin-top:12px">
+            @forelse ($websites as $w)
+                <tr>
+                    <td><a href="{{ route('system.organization.website.create', $organization) }}" title="{{ __('Edit via Website module') }}">{{ $w->name }}</a><div class="dim small">{{ $w->slug }} · {{ $w->domain ?: '/s/'.$w->slug }}</div></td>
+                    <td class="dim small">{{ \App\Support\Templates::ALL[$w->templateKey()]['label'] ?? $w->template }}</td>
+                    <td class="dim small"><span class="chip">{{ $w->is_active ? __('active') : __('inactive') }}</span></td>
+                    <td class="right-align"><a class="btn small ghost" href="{{ site_url($w, 'home') }}" target="_blank" rel="noopener">{{ __('View') }}</a></td>
+                </tr>
+            @empty
+                <tr><td class="dim">{{ __('No websites yet.') }}</td></tr>
+            @endforelse
+        </table>
+        <p class="dim small" style="margin-top:8px">{{ __('Websites are created here by system admins. Owner edits content via Website module, not here.') }}</p>
+    </div>
+
     <form method="POST" action="{{ route('system.organization.modules', $organization) }}" class="card table-wrap">
         @csrf
         @method('PUT')

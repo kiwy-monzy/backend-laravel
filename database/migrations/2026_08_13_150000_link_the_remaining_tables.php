@@ -78,14 +78,30 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('purchasing_orders', fn (Blueprint $t) => $t->dropColumn('vendor_id'));
-        Schema::table('projects_records', fn (Blueprint $t) => $t->dropColumn(['customer_id', 'contract_id', 'department_id']));
-        Schema::table('billing_subscriptions', fn (Blueprint $t) => $t->dropColumn('customer_id'));
-        Schema::table('bookings_appointments', fn (Blueprint $t) => $t->dropColumn(['customer_id', 'staff_member_id', 'service_id']));
-        Schema::table('fulfillment_shipments', fn (Blueprint $t) => $t->dropColumn(['customer_id', 'order_id']));
-        Schema::table('expenses_records', fn (Blueprint $t) => $t->dropColumn(['vendor_id', 'account_id', 'department_id', 'contract_id', 'project_id']));
-        Schema::table('procurement_requests', fn (Blueprint $t) => $t->dropColumn(['department_id', 'requested_by_id', 'purchase_order_id']));
-        Schema::table('cart_orders', fn (Blueprint $t) => $t->dropColumn('shipment_id'));
-        Schema::table('accounting_journal_entries', fn (Blueprint $t) => $t->dropColumn(['source_type', 'source_id']));
+        // SQLite cannot drop a column that is part of an index without dropping
+        // the index first (error: no such column in index after drop). Drop
+        // indexes explicitly before columns for sqlite compatibility.
+        $isSqlite = Schema::getConnection()->getDriverName() === 'sqlite';
+
+        $drop = function (string $table, array $columns) use ($isSqlite) {
+            Schema::table($table, function (Blueprint $t) use ($columns, $isSqlite) {
+                if ($isSqlite) {
+                    foreach ($columns as $col) {
+                        try { $t->dropIndex([$col]); } catch (\Throwable $e) {}
+                    }
+                }
+                $t->dropColumn($columns);
+            });
+        };
+
+        $drop('purchasing_orders', ['vendor_id']);
+        $drop('projects_records', ['customer_id', 'contract_id', 'department_id']);
+        $drop('billing_subscriptions', ['customer_id']);
+        $drop('bookings_appointments', ['customer_id', 'staff_member_id', 'service_id']);
+        $drop('fulfillment_shipments', ['customer_id', 'order_id']);
+        $drop('expenses_records', ['vendor_id', 'account_id', 'department_id', 'contract_id', 'project_id']);
+        $drop('procurement_requests', ['department_id', 'requested_by_id', 'purchase_order_id']);
+        $drop('cart_orders', ['shipment_id']);
+        $drop('accounting_journal_entries', ['source_type', 'source_id']);
     }
 };

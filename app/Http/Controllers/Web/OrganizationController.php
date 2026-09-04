@@ -98,15 +98,23 @@ class OrganizationController extends AdminController
             'tertiary' => $data['override_tertiary'] ?? null,
         ]);
 
+        // Only system admins may touch the presentation — owner screen hides
+        // these inputs, but a crafted POST must not slip through either.
+        $presentation = [];
+        if ($this->me()->isSystemAdmin()) {
+            $presentation = [
+                'template' => $data['template'] ?? null,
+                'theme' => $data['theme'] ?? null,
+                'theme_overrides' => $overrides ?: null,
+            ];
+        }
+
         // The organization columns stay the module-facing copy (invoices, mail,
         // quotes); the public site reads the same values from the profile's
         // `general` block, so a save writes both sides.
         $org->update($data + [
             'general' => $this->mergeGeneral($org->general ?? [], $request),
-            'template' => $data['template'] ?? null,
-            'theme' => $data['theme'] ?? null,
-            'theme_overrides' => $overrides ?: null,
-        ]);
+        ] + $presentation);
 
         return back()->with('status', __('Organization saved.'));
     }

@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\Website;
 use App\Support\Access;
 use App\Support\Modules;
+use App\Support\Templates;
+use App\Support\ThemeFactory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -209,6 +211,7 @@ class SystemController extends AdminController
 
         return view('system.organization', [
             'organization' => $organization->loadCount(['members', 'websites']),
+            'websites' => $organization->websites()->orderBy('name')->get(),
             'modules' => Modules::enabled(),
             'granted' => $granted,
             'owners' => User::whereIn('role', ['owner', 'system_admin'])->orderBy('username')->get(),
@@ -270,6 +273,85 @@ class SystemController extends AdminController
         }
 
         return back()->with('status', __('Module grants updated for :org.', ['org' => $organization->name]));
+    }
+
+    /** System-only: the look every website in this organization renders in. */
+    public function updatePresentation(Request $request, Organization $organization): RedirectResponse
+    {
+        $this->assertSystemAdmin();
+
+        $data = $request->validate([
+            'template' => ['required', 'in:'.implode(',', array_keys(Templates::ALL))],
+            'theme' => ['required', 'in:'.implode(',', array_keys(ThemeFactory::PRESETS))],
+            'override_primary' => ['nullable', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+            'override_secondary' => ['nullable', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+            'override_tertiary' => ['nullable', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
+        ]);
+
+        $overrides = array_filter([
+            'primary' => $data['override_primary'] ?? null,
+            'secondary' => $data['override_secondary'] ?? null,
+            'tertiary' => $data['override_tertiary'] ?? null,
+        ]);
+
+        $organization->update([
+            'template' => $data['template'],
+            'theme' => $data['theme'],
+            'theme_overrides' => $overrides ?: null,
+        ]);
+
+        return back()->with('status', __('Appearance saved for :org.', ['org' => $organization->name]));
+    }
+
+    /** System-only: create a website owned by this organization. */
+    public function createWebsite(Organization $organization)
+    {
+        $this->assertSystemAdmin();
+
+        return view('system.website-form', [
+            'organization' => $organization,
+            'website' => new Website([
+                'template' => $organization->template ?? 'template0',
+                'theme' => $organization->theme ?? 'fge-custom',
+                'is_active' => true,
+                'splash' => 'none',
+                'splash_seconds' => 2,
+                'default_language' => 'en',
+            ]),
+            'templates' => Templates::ALL,
+            'themes' => ThemeFactory::PRESETS,
+            'owners' => User::where('organization_id', $organization->id)->orderBy('username')->get(),
+        ]);
+    }
+
+    public function storeWebsite(Request $request, Organization $organization): RedirectResponse
+    {
+        $this->assertSystemAdmin();
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'slug' => ['required', 'string', 'max:60', 'regex:/^[a-z0-9-]+$/', 'unique:websites,slug'],
+            'domain' => ['nullable', 'string', 'max:190'],
+            'owner_id' => ['nullable', 'string'],
+            'is_active' => ['nullable', 'boolean'],
+            'template' => ['nullable', 'in:'.implode(',', array_keys(Templates::ALL))],
+            'theme' => ['nullable', 'in:'.implode(',', array_keys(ThemeFactory::PRESETS))],
+        ]);
+
+        $website = Website::create([
+            'id' => (string) Str::uuid(),
+            'name' => $data['name'],
+            'slug' => $data['slug'],
+            'domain' => $data['domain'] ?? null,
+            'is_active' => (bool) ($data['is_active'] ?? true),
+            'template' => $data['template'] ?? $organization->template,
+            'theme' => $data['theme'] ?? $organization->theme,
+            'owner_id' => $data['owner_id'] ?: $organization->owner_id,
+            'organization_id' => $organization->id,
+            'default_language' => 'en',
+        ]);
+
+        return redirect()->route('system.organization', $organization)->with('status', __('Website :name created.', ['name' => $website->name]));
     }
 
     private function assertSystemAdmin(): void
