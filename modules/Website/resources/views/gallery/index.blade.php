@@ -33,16 +33,6 @@
 
     <x-image-picker />
 
-    @if ($images->isNotEmpty())
-        <div class="card" style="padding:10px">
-            <div data-grid
-                 data-src="{{ route('website.gallery.data') }}"
-                 data-columns='@json($gridColumns)'
-                 data-per-page="100"
-                 data-empty="{{ __('No images yet.') }}"></div>
-        </div>
-    @endif
-
     @if ($images->isEmpty())
         <p class="dim">{{ __('No images yet.') }}</p>
     @else
