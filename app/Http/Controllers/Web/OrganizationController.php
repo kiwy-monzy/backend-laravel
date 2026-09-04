@@ -268,9 +268,12 @@ class OrganizationController extends AdminController
         return back()->with('status', __('Member removed from the team.'));
     }
 
-    /** The matrix: which roles may enter which modules, for this organization. */
+    /** The matrix: which roles may enter which modules, for this organization. System-only. */
     public function access()
     {
+        if (! $this->me()->isSystemAdmin()) {
+            throw new AccessDeniedHttpException('Only a system administrator manages access.');
+        }
         $org = $this->org();
 
         $matrix = [];
@@ -304,6 +307,9 @@ class OrganizationController extends AdminController
 
     public function updateAccess(Request $request): RedirectResponse
     {
+        if (! $this->me()->isSystemAdmin()) {
+            throw new AccessDeniedHttpException('Only a system administrator manages access.');
+        }
         $this->assertCanManage();
 
         $org = $this->org();
@@ -354,6 +360,9 @@ class OrganizationController extends AdminController
 
     public function subscription()
     {
+        if (! $this->me()->isSystemAdmin()) {
+            throw new AccessDeniedHttpException('Only a system administrator manages subscription.');
+        }
         $org = $this->org();
 
         return view('organization.subscription', [
@@ -366,6 +375,9 @@ class OrganizationController extends AdminController
 
     public function updateSubscription(Request $request): RedirectResponse
     {
+        if (! $this->me()->isSystemAdmin()) {
+            throw new AccessDeniedHttpException('Only a system administrator manages subscription.');
+        }
         $this->assertCanManage();
 
         $data = $request->validate([

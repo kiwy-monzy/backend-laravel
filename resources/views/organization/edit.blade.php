@@ -167,7 +167,7 @@
                 <p class="dim small" style="margin:4px 0 0">
                     {{ __('Only a system admin can change the template and theme. Ask an admin on :route.', ['route' => route('system.organization', $organization->id)]) }}
                     <br>
-                    {{ __('Current: :template — :theme', ['template' => \App\Support\Templates::ALL[$organization->templateKey()]['label'] ?? $organization->templateKey(), 'theme' => \App\Support\ThemeFactory::PRESETS[$organization->effectiveTheme()]['label'] ?? $organization->effectiveTheme()]) }}
+                    {{ __('Current: :template — :theme', ['template' => \App\Support\Templates::ALL[$organization->template ?? 'template0']['label'] ?? ($organization->template ?? 'template0'), 'theme' => \App\Support\ThemeFactory::PRESETS[$organization->profileTheme()]['label'] ?? $organization->profileTheme()]) }}
                 </p>
             </div>
         @endif
