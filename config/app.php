@@ -63,7 +63,7 @@ return [
     | rather than env() at the point of use, because env() returns null once
     | `config:cache` has run - which is exactly when this matters.
     */
-    'force_root_url' => (bool) env('APP_URL_FORCE_ROOT', false),
+    'force_root_url' => (bool) env('APP_URL_FORCE_ROOT', str_starts_with((string) env('APP_URL', ''), 'https://fge.or.tz')),
 
     /*
     |--------------------------------------------------------------------------
