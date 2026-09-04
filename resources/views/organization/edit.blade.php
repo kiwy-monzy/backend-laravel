@@ -78,7 +78,7 @@
             @foreach (['facebook', 'twitter', 'instagram', 'linkedin'] as $network)
                 <label>
                     <span>{{ ucfirst($network) }}</span>
-                    <input type="url" name="social_links[{{ $network }}]"
+                    <input type="text" name="social_links[{{ $network }}]" inputmode="url" placeholder="https://... or #"
                            value="{{ old("social_links.$network", $organization->general['social_links'][$network] ?? '') }}"
                            @disabled(! $canManage)>
                 </label>

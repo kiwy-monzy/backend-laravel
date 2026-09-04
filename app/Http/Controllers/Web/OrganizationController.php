@@ -142,10 +142,15 @@ class OrganizationController extends AdminController
         $general['logo_url'] = (string) $request->input('logo_url', $general['logo_url'] ?? '');
 
         foreach (['facebook', 'twitter', 'instagram', 'linkedin'] as $network) {
-            $general['social_links'][$network] = (string) $request->input(
+            $raw = trim((string) $request->input(
                 "social_links.$network",
                 $general['social_links'][$network] ?? ''
-            );
+            ));
+            // "#" is used as placeholder for "no link" — store as empty so footer hides it
+            if ($raw === '#') {
+                $raw = '';
+            }
+            $general['social_links'][$network] = $raw;
         }
 
         foreach ([
