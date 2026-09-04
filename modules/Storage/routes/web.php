@@ -19,4 +19,6 @@ Route::delete('/collections/{collection}', [StorageController::class, 'destroyCo
 
 Route::get('/{collection}', [StorageController::class, 'show'])->name('collections.show');
 Route::post('/{collection}', [StorageController::class, 'store'])->name('collections.upload');
+Route::get('/{collection}/{upload}/edit', [StorageController::class, 'edit'])->name('files.edit');
+Route::put('/{collection}/{upload}', [StorageController::class, 'update'])->name('files.update');
 Route::delete('/{collection}/{upload}', [StorageController::class, 'destroy'])->name('files.destroy');

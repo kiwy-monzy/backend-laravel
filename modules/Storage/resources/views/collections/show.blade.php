@@ -40,31 +40,49 @@
     @if ($files->isEmpty())
         <p class="dim">{{ __('Nothing here yet.') }}</p>
     @else
-        <div class="media">
-            @foreach ($files as $file)
-                <div class="tile">
-                    @if ($file->isImage())
-                        <img src="{{ $file->url }}" alt="{{ $file->filename }}" loading="lazy">
-                    @else
-                        <div class="thumb">{{ pathinfo($file->filename, PATHINFO_EXTENSION) ?: 'file' }}</div>
-                    @endif
-                    <div class="tile-body">
-                        <div class="name">{{ $file->filename }}</div>
-                        <div class="dim small">{{ $file->humanSize() }}</div>
-                        <div class="actions">
+        <div class="card table-wrap">
+            <table>
+                <tr>
+                    <th style="width:56px">{{ __('Preview') }}</th>
+                    <th>{{ __('File') }}</th>
+                    <th>{{ __('Size') }}</th>
+                    <th>{{ __('Type') }}</th>
+                    <th>{{ __('Uploaded') }}</th>
+                    <th style="width:210px"></th>
+                </tr>
+                @foreach ($files as $file)
+                    <tr>
+                        <td>
+                            @if ($file->isImage())
+                                <a href="{{ route('storage.files.edit', [$collection->slug, $file->id]) }}">
+                                    <img src="{{ $file->url }}" alt="{{ $file->filename }}" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:6px;display:block">
+                                </a>
+                            @else
+                                <div style="width:44px;height:44px;background:#f3f4f6;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#6b7280">{{ pathinfo($file->filename, PATHINFO_EXTENSION) ?: 'file' }}</div>
+                            @endif
+                        </td>
+                        <td>
+                            <a href="{{ route('storage.files.edit', [$collection->slug, $file->id]) }}" style="font-weight:600">{{ $file->filename }}</a>
+                            <div class="dim small" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $file->url }}</div>
+                        </td>
+                        <td class="dim small">{{ $file->humanSize() }}</td>
+                        <td class="dim small">{{ $file->mime }}</td>
+                        <td class="dim small">{{ $file->created_at?->format('Y-m-d') ?? '—' }}</td>
+                        <td class="right-align" style="white-space:nowrap">
                             <a class="btn small ghost" href="{{ $file->url }}" target="_blank" rel="noopener">{{ __('Open') }}</a>
+                            <a class="btn small" href="{{ route('storage.files.edit', [$collection->slug, $file->id]) }}">{{ __('Edit') }}</a>
                             @if ($canDelete)
-                                <form method="POST" action="{{ route('storage.files.destroy', [$collection->slug, $file->id]) }}"
+                                <form method="POST" action="{{ route('storage.files.destroy', [$collection->slug, $file->id]) }}" class="inline-form"
                                       data-confirm="{{ __('Delete :name?', ['name' => $file->filename]) }}">
                                     @csrf
                                     @method('DELETE')
                                     <button class="btn small danger" type="submit">{{ __('Delete') }}</button>
                                 </form>
                             @endif
-                        </div>
-                    </div>
-                </div>
-            @endforeach
+                        </td>
+                    </tr>
+                @endforeach
+            </table>
         </div>
 
         {{ $files->links() }}

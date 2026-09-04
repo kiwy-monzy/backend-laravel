@@ -116,6 +116,162 @@ class StorageController extends ModuleController
         return back()->with('status', __('File deleted.'));
     }
 
+    public function edit(string $collection, string $upload)
+    {
+        $found = $this->findCollection($collection);
+        $file = $found->uploads()->find($upload);
+        if (! $file) {
+            throw new NotFoundHttpException('No such file.');
+        }
+
+        $collections = StorageCollection::where('organization_id', $this->organizationId())
+            ->where('selectable', true)
+            ->orderByDesc('is_system')
+            ->orderBy('name')
+            ->get();
+
+        return view('storage::files.edit', [
+            'organization' => $this->organization(),
+            'collection' => $found,
+            'file' => $file,
+            'collections' => $collections,
+            'canWrite' => $found->writableBy($this->role()),
+        ]);
+    }
+
+    public function update(Request $request, string $collection, string $upload): RedirectResponse
+    {
+        $found = $this->findCollection($collection);
+        $this->assertWritable($found);
+
+        $file = $found->uploads()->find($upload);
+        if (! $file) {
+            throw new NotFoundHttpException('No such file.');
+        }
+
+        $data = $request->validate([
+            'filename' => ['required', 'string', 'max:120'],
+            'collection' => ['required', 'string', 'exists:storage_collections,slug'],
+            'replace' => ['nullable', 'file', 'max:20480'],
+        ]);
+
+        $targetCollection = StorageCollection::where('organization_id', $this->organizationId())
+            ->where('slug', $data['collection'])
+            ->first();
+
+        if (! $targetCollection || ! $targetCollection->writableBy($this->role())) {
+            return back()->with('error', __('You cannot move files to that collection.'));
+        }
+
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+        $oldPath = $file->path ?: \Illuminate\Support\Str::after($file->url, '/storage/');
+        $oldUrl = $file->url;
+
+        // Handle file replacement
+        if ($request->hasFile('replace')) {
+            $uploaded = $request->file('replace');
+            // Remove old physical file if no other upload points at it
+            if (\Illuminate\Support\Str::startsWith($oldUrl, \App\Services\MediaLibrary::PREFIX) && ! Upload::where('url', $oldUrl)->where('id', '!=', $file->id)->exists()) {
+                $disk->delete($oldPath);
+            }
+            $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', $data['filename']) ?: $uploaded->getClientOriginalName();
+            $newPath = $targetCollection->path().'/'.$this->uniqueName($safeName);
+            $disk->put($newPath, file_get_contents($uploaded->getRealPath()));
+            $file->forceFill([
+                'filename' => $safeName,
+                'mime' => $uploaded->getClientMimeType() ?: $this->guessMime($safeName),
+                'size' => $uploaded->getSize() ?: $disk->size($newPath),
+                'path' => $newPath,
+                'url' => '/storage/'.$newPath,
+                'collection_id' => $targetCollection->id,
+            ]);
+        } else {
+            // Rename / move without content change
+            $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', $data['filename']) ?: $file->filename;
+            $safeName = \Illuminate\Support\Str::limit($safeName, 90, '');
+
+            $newPath = $targetCollection->path().'/'.$safeName;
+            $needsMove = $newPath !== $oldPath;
+
+            if ($needsMove) {
+                // Ensure unique if target exists
+                if ($disk->exists($newPath)) {
+                    $newPath = $targetCollection->path().'/'.$this->uniqueName($safeName);
+                }
+                if ($disk->exists($oldPath)) {
+                    $disk->move($oldPath, $newPath);
+                }
+                $file->forceFill([
+                    'filename' => basename($newPath),
+                    'path' => $newPath,
+                    'url' => '/storage/'.$newPath,
+                    'collection_id' => $targetCollection->id,
+                ]);
+            } elseif ($file->collection_id !== $targetCollection->id) {
+                $file->forceFill(['collection_id' => $targetCollection->id]);
+            } elseif ($safeName !== $file->filename) {
+                $file->forceFill(['filename' => $safeName]);
+                // Also update URL's basename if only name changed without move
+                if (! $needsMove) {
+                    // path already reflects new name via move above; if no move we still need to patch filename column
+                }
+            }
+        }
+
+        // Update references that pointed at the old URL (gallery, content)
+        if ($file->isDirty('url') && $oldUrl !== $file->url) {
+            GalleryImage::where('url', $oldUrl)->update(['url' => $file->url]);
+            // Content sections: walk JSON and replace
+            foreach (\App\Models\ContentSection::where('website_id', $file->website_id)->cursor() as $section) {
+                $dataArr = $section->data;
+                if (! is_array($dataArr)) continue;
+                $changed = 0;
+                $newData = $this->replaceUrlDeep($dataArr, $oldUrl, $file->url, $changed);
+                if ($changed > 0) {
+                    $section->forceFill(['data' => $newData])->save();
+                }
+            }
+            Upload::where('url', $oldUrl)->where('id', '!=', $file->id)->update(['url' => $file->url, 'path' => $file->path]);
+        }
+
+        $file->save();
+
+        return redirect()->route('storage.collections.show', $targetCollection->slug)->with('status', __('File updated.'));
+    }
+
+    private function uniqueName(string $name): string
+    {
+        $ext = pathinfo($name, PATHINFO_EXTENSION);
+        $stem = pathinfo($name, PATHINFO_FILENAME);
+        return $stem.'-'.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(8)).($ext ? '.'.$ext : '');
+    }
+
+    private function guessMime(string $filename): string
+    {
+        return match (strtolower(pathinfo($filename, PATHINFO_EXTENSION))) {
+            'jpg','jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            'pdf' => 'application/pdf',
+            default => 'application/octet-stream',
+        };
+    }
+
+    private function replaceUrlDeep(mixed $value, string $old, string $new, int &$changed): mixed
+    {
+        if (is_string($value)) {
+            if ($value === $old) { $changed++; return $new; }
+            return $value;
+        }
+        if (is_array($value)) {
+            foreach ($value as $k => $v) $value[$k] = $this->replaceUrlDeep($v, $old, $new, $changed);
+            return $value;
+        }
+        return $value;
+    }
+
     public function storeCollection(Request $request): RedirectResponse
     {
         $this->assertCanManage();
